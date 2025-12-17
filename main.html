@@ -1,105 +1,101 @@
-<!doctype html>
-<html>
-  <head>
-    <meta charset = "utf-8">
-    <title>TYT_bio</title>
-    <link rel="icon" href="噬菌體.jpg">
-  </head>
-  <body>
-      hello world  
-      Biology is awesome~~~
-    <meta charset="UTF-8" />
-============================ */
-function spawnImages() {
-imageSrcList.forEach(src => {
-let img = document.createElement("img");
-img.src = src;
-img.style.position = "absolute";
-img.style.width = "120px"; // 你可調整
-img.style.cursor = "pointer";
-
-
-// 隨機起始位置
-img.x = Math.random() * (window.innerWidth - 120);
-img.y = Math.random() * (window.innerHeight - 120);
-
-
-// 隨機速度（怪誕跳躍感）
-img.vx = (Math.random() * 4 + 2) * (Math.random() < 0.5 ? 1 : -1);
-img.vy = (Math.random() * 4 + 2) * (Math.random() < 0.5 ? 1 : -1);
-
-
-document.body.appendChild(img);
-loadedImages.push(img);
-
-
-// 點擊後跳出資訊
-img.addEventListener("click", () => popInfo(img));
-});
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Juanita's Imagine World</title>
+<style>
+/* === 基本頁面設定 === */
+body {
+margin: 0;
+overflow: hidden; /* 防止捲動條 */
+background: black;
+font-family: "Arial", sans-serif;
 }
+
+
+/* === 進入按鈕 === */
+#startBtn {
+position: absolute;
+top: 50%;
+left: 50%;
+transform: translate(-50%, -50%);
+padding: 20px 40px;
+font-size: 24px;
+background: #ff66cc;
+color: white;
+border: none;
+border-radius: 20px;
+cursor: pointer;
+z-index: 10;
+}
+
+
+/* === 最終結束動畫文字 === */
+#finalText {
+position: absolute;
+top: 50%;
+left: 50%;
+transform: translate(-50%, -50%);
+font-size: 48px;
+color: white;
+opacity: 0;
+pointer-events: none;
+}
+
+
+/* 噴漆的字專用：模糊邊緣 */
+.spray {
+filter: blur(2px);
+opacity: 0;
+animation: sprayAppear 3s forwards;
+}
+
+
+@keyframes sprayAppear {
+0% { opacity: 0; letter-spacing: 20px; }
+100% { opacity: 1; letter-spacing: 0px; }
+}
+
+
+/* 玻璃碎裂動畫（整頁墜落）*/
+.fall {
+animation: fallDown 2.5s forwards;
+}
+
+
+@keyframes fallDown {
+0% { transform: translate(0,0) rotate(0deg); }
+100% { transform: translate(0,120%) rotate(12deg); }
+}
+
+
+</style>
+</head>
+<body>
+
+
+<button id="startBtn">Click to enter Juanita's imagine world</button>
+<div id="finalText"></div>
+
+
+<script>
+/* ============================
+浮動圖片物件儲存
+============================ */
+let items = []; // 用來存所有圖片物件
+let loadedImages = []; // 實際載入的圖片元素
 
 
 /* ============================
-點擊圖片 → alert 彈資訊 → 移除圖片
+你上傳後的圖片名稱列表 (之後可替換)
 ============================ */
-function popInfo(img) {
-alert("這是範例資訊：之後你可以替換成每張圖要說的話");
-document.body.removeChild(img);
-loadedImages = loadedImages.filter(i => i !== img);
+const imageSrcList = [
+"https://via.placeholder.com/150/ff66cc/ffffff?text=A",
+"https://via.placeholder.com/150/66ffcc/000000?text=B",
+"https://via.placeholder.com/150/cc66ff/ffffff?text=C",
+"https://via.placeholder.com/150/ffcc66/000000?text=D"
+];
 
 
-// 如果全部圖片消失 → 播放結尾動畫
-if (loadedImages.length === 0) {
-setTimeout(showFinalSentence, 500);
-}
-}
-
-
-/* ============================
-浮動動畫（反彈）
-============================ */
-function animate() {
-loadedImages.forEach(img => {
-img.x += img.vx;
-img.y += img.vy;
-
-
-// 撞左右
-if (img.x <= 0 || img.x >= window.innerWidth - 120) {
-img.vx *= -1;
-}
-// 撞上下
-if (img.y <= 0 || img.y >= window.innerHeight - 120) {
-img.vy *= -1;
-}
-
-
-img.style.left = img.x + "px";
-img.style.top = img.y + "px";
-});
-
-
-requestAnimationFrame(animate);
-}
-
-
-/* ============================
-最終黑幕 + 噴漆文字 → 整頁墜落
-============================ */
-function showFinalSentence() {
-const final = document.getElementById("finalText");
-final.textContent = "（在這裡放你的句子）";
-final.classList.add("spray");
-document.body.style.background = "black";
-
-
-// 十秒後墜落
-setTimeout(() => {
-document.body.classList.add("fall");
-}, 10000);
-}
-</script>
-</body>
-</html>
-  </body>
 </html>
