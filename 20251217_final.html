@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Juanita's Imagine World</title>
+  <style>
+    /* === Cyberpunk 主色設定 === */
+    :root {
+      --neon-pink: #ff2fd2;
+      --neon-cyan: #00fff0;
+      --neon-yellow: #fff700;
+      --deep-black: #050008;
+    }
+
+    /* === 全頁背景（螢光噪動） === */
+    body {
+      margin: 0;
+      overflow: hidden;
+      background: radial-gradient(circle at center, #120018, var(--deep-black));
+      font-family: "Comic Sans MS", "Brush Script MT", cursive;
+      animation: bgPulse 4s infinite alternate;
+    }
+
+    @keyframes bgPulse {
+      0% { filter: hue-rotate(0deg); }
+      100% { filter: hue-rotate(20deg); }
+    }
+
+    /* === 進入按鈕（螢光噴漆） === */
+    #startBtn {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%) rotate(-3deg);
+      padding: 22px 46px;
+      font-size: 26px;
+      background: linear-gradient(135deg, var(--neon-pink), var(--neon-cyan));
+      color: black;
+      border: 4px dashed var(--neon-yellow);
+      border-radius: 999px;
+      cursor: pointer;
+      z-index: 10;
+      text-shadow: 0 0 8px white;
+      box-shadow: 0 0 25px var(--neon-pink), inset 0 0 12px white;
+      animation: btnGlitch 1.2s infinite;
+    }
+
+    @keyframes btnGlitch {
+      0% { transform: translate(-50%, -50%) rotate(-3deg); }
+      50% { transform: translate(-48%, -52%) rotate(2deg) scale(1.1); }
+      100% { transform: translate(-50%, -50%) rotate(-3deg); }
+    }
+
+    /* === 圖片怪誕螢光 === */
+    img {
+      filter: drop-shadow(0 0 18px var(--neon-cyan));
+      animation: imgPulse 1.5s infinite alternate;
+    }
+
+    @keyframes imgPulse {
+      from { transform: rotate(-2deg) scale(1); }
+      to { transform: rotate(4deg) scale(1.12); }
+    }
+
+    /* === 最終噴漆文字 === */
+    #finalText {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      font-size: 64px;
+      color: var(--neon-cyan);
+      font-family: "Brush Script MT", "Comic Sans MS", cursive;
+      text-shadow:
+        0 0 10px var(--neon-cyan),
+        0 0 30px var(--neon-pink),
+        0 0 60px var(--neon-yellow);
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    .spray {
+      animation: sprayAppear 3s forwards, jitter 0.15s infinite;
+    }
+
+    @keyframes sprayAppear {
+      0% { opacity: 0; letter-spacing: 40px; filter: blur(6px); }
+      100% { opacity: 1; letter-spacing: 2px; filter: blur(1px); }
+    }
+
+    @keyframes jitter {
+      0% { transform: translate(-50%, -50%) rotate(0deg); }
+      50% { transform: translate(-47%, -53%) rotate(1deg); }
+      100% { transform: translate(-50%, -50%) rotate(-1deg); }
+    }
+
+    /* === 整頁墜落（玻璃破碎感） === */
+    .fall {
+      animation: fallDown 2.8s forwards ease-in;
+    }
+
+    @keyframes fallDown {
+      0% { transform: translate(0,0) rotate(0deg); }
+      100% { transform: translate(0,140%) rotate(18deg) scale(0.85); }
+    }
+  </style>
+</head>
+<body>
+
+  <button id="startBtn">Click to enter Juanita's imagine world</button>
+  <div id="finalText"></div>
+
+  <script>
+    /* ============================
+       浮動圖片物件儲存
+    ============================ */
+    let items = []; // 用來存所有圖片物件
+    let loadedImages = []; // 實際載入的圖片元素
+
+    /* ============================
+       你上傳後的圖片名稱列表 (之後可替換)
+    ============================ */
+    const imageSrcList = [
+      "IMG_1034.png",
+      "IMG_1033.png",
+      "IMG_1032.png",
+      "IMG_1031.png"
+    ];
+
+    /* ============================
+       點擊開始後啟動
+    ============================ */
+    const startBtn = document.getElementById("startBtn");
+    startBtn.addEventListener("click", startGame);
+
+    function startGame() {
+      startBtn.style.display = "none";
+      spawnImages();
+      animate();
+    }
+
+    /* ============================
+       在畫面隨機位置產生圖片、給速度
+    ============================ */
+    function spawnImages() {
+      imageSrcList.forEach(src => {
+        let img = document.createElement("img");
+        img.src = src;
+        img.style.position = "absolute";
+        img.style.width = "120px"; // 你可調整
+        img.style.cursor = "pointer";
+
+        // 隨機起始位置
+        img.x = Math.random() * (window.innerWidth - 120);
+        img.y = Math.random() * (window.innerHeight - 120);
+
+        // 隨機速度（怪誕跳躍感）
+        img.vx = (Math.random() * 4 + 2) * (Math.random() < 0.5 ? 1 : -1);
+        img.vy = (Math.random() * 4 + 2) * (Math.random() < 0.5 ? 1 : -1);
+
+        document.body.appendChild(img);
+        loadedImages.push(img);
+
+        // 點擊後跳出資訊
+        img.addEventListener("click", () => popInfo(img));
+      });
+    }
+
+    /* ============================
+       點擊圖片 → alert 彈資訊 → 移除圖片
+    ============================ */
+    function popInfo(img) {
+      alert("這是範例資訊：之後你可以替換成每張圖要說的話");
+      document.body.removeChild(img);
+      loadedImages = loadedImages.filter(i => i !== img);
+
+      // 如果全部圖片消失 → 播放結尾動畫
+      if (loadedImages.length === 0) {
+        setTimeout(showFinalSentence, 500);
+      }
+    }
+
+    /* ============================
+       浮動動畫（反彈）
+    ============================ */
+    function animate() {
+      loadedImages.forEach(img => {
+        img.x += img.vx;
+        img.y += img.vy;
+
+        // 撞左右
+        if (img.x <= 0 || img.x >= window.innerWidth - 120) {
+          img.vx *= -1;
+        }
+        // 撞上下
+        if (img.y <= 0 || img.y >= window.innerHeight - 120) {
+          img.vy *= -1;
+        }
+
+        img.style.left = img.x + "px";
+        img.style.top = img.y + "px";
+      });
+
+      requestAnimationFrame(animate);
+    }
+
+    /* ============================
+       最終黑幕 + 噴漆文字 → 整頁墜落
+    ============================ */
+    function showFinalSentence() {
+      const final = document.getElementById("finalText");
+      final.textContent = "（在這裡放你的句子）";
+      final.classList.add("spray");
+      document.body.style.background = "black";
+
+      // 十秒後墜落
+      setTimeout(() => {
+        document.body.classList.add("fall");
+      }, 10000);
+    }
+  </script>
+</body>
+</html>
