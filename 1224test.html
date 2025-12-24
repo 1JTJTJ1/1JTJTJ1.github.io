@@ -7,7 +7,11 @@
   html, body {
     margin: 0;
     padding: 0;
-    background: #0e0f14;
+    background: linear-gradient(
+      180deg,
+      #eef6ff,
+      #f9fbff
+    );
     overflow: hidden;
   }
   canvas {
@@ -82,13 +86,16 @@ class Bubble {
 
     ctx.globalCompositeOperation = "source-over";
 
-    /* 外框 */
-    ctx.strokeStyle = "rgba(255,255,255,0.5)";
-    ctx.lineWidth = 1;
+    /* 極淡輪廓（像空氣折射） */
+    ctx.strokeStyle = "rgba(255,255,255,0.15)";
+    ctx.lineWidth = 0.6;
     ctx.beginPath();
     ctx.arc(0, 0, this.r, 0, Math.PI * 2);
     ctx.stroke();
 
+    ctx.shadowColor = "rgba(255,255,255,0.2)";
+    ctx.shadowBlur = 8;
+    
     /* 折射高光 */
     ctx.strokeStyle = `hsla(${(this.t*40)%360},90%,75%,0.6)`;
     ctx.lineWidth = 2;
