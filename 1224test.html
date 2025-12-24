@@ -67,8 +67,14 @@ class Bubble {
       this.breakProgress += 0.004;
     }
   }
-
- draw() {
+  
+  draw() {
+    ctx.beginPath();
+    ctx.arc(this.x, this.y, this.r, 0, Math.PI * 2);
+    ctx.fillStyle = "rgba(255, 180, 255, 0.6)";
+    ctx.fill();
+  }
+//{draw() {
     ctx.save();
     ctx.translate(this.x, this.y);
     ctx.globalAlpha = this.life;
@@ -137,7 +143,7 @@ class Bubble {
       ctx.stroke();
     
       ctx.restore();
-    }
+    }}
 
 function loop() {
   ctx.clearRect(0, 0, canvas.width, canvas.height);
