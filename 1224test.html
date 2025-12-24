@@ -164,6 +164,8 @@ canvas.addEventListener("mousedown", e => spawn(e.clientX, e.clientY));
 canvas.addEventListener("touchstart", e => {
   const t = e.touches[0];
   spawn(t.clientX, t.clientY);
+  ctx.fillStyle = "red";
+  ctx.fillRect(50, 50, 50, 50);
 });
 </script>
 </body>
