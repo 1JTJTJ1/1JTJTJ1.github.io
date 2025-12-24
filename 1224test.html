@@ -31,38 +31,60 @@ window.addEventListener("resize", resize);
 resize();
 
 let bubbles = [];
-let wind = 0.2; // 風速（之後可以接 UI）
+let wind = 0.15;
 
 class Bubble {
   constructor(x, y) {
     this.x = x;
     this.y = y;
-    this.r = Math.random() * 20 + 10;
+    this.r = Math.random() * 25 + 15;
     this.life = 1;
-    this.vy = Math.random() * -0.4 - 0.2;
-    this.vx = (Math.random() - 0.5) * 0.3;
-    this.hue = Math.random() * 360;
+    this.vy = Math.random() * -0.3 - 0.2;
+    this.vx = (Math.random() - 0.5) * 0.2;
+    this.phase = Math.random() * Math.PI * 2;
   }
 
   update() {
     this.x += this.vx + wind;
     this.y += this.vy;
-    this.life -= 0.002;
+    this.phase += 0.01;       // 彩虹紋路在動
+    this.life -= 0.0015;
   }
 
   draw() {
     ctx.save();
     ctx.globalAlpha = this.life;
 
-    // 外圈白光
-    ctx.strokeStyle = "rgba(255,255,255,0.4)";
+    /* 內部彩虹油膜 */
+    const grad = ctx.createRadialGradient(
+      this.x - this.r * 0.3,
+      this.y - this.r * 0.3,
+      this.r * 0.2,
+      this.x,
+      this.y,
+      this.r
+    );
+
+    const t = this.phase;
+    grad.addColorStop(0, `hsla(${t * 40},80%,70%,0.25)`);
+    grad.addColorStop(0.4, `hsla(${t * 40 + 120},80%,70%,0.15)`);
+    grad.addColorStop(0.7, `hsla(${t * 40 + 240},80%,70%,0.12)`);
+    grad.addColorStop(1, `rgba(255,255,255,0)`);
+
+    ctx.fillStyle = grad;
+    ctx.beginPath();
+    ctx.arc(this.x, this.y, this.r, 0, Math.PI * 2);
+    ctx.fill();
+
+    /* 外圈白光 */
+    ctx.strokeStyle = "rgba(255,255,255,0.45)";
     ctx.lineWidth = 1;
     ctx.beginPath();
     ctx.arc(this.x, this.y, this.r, 0, Math.PI * 2);
     ctx.stroke();
 
-    // 折射彩色邊緣
-    ctx.strokeStyle = `hsla(${this.hue},80%,70%,0.6)`;
+    /* 折射彩邊 */
+    ctx.strokeStyle = `hsla(${t * 40 + 180},80%,75%,0.5)`;
     ctx.lineWidth = 2;
     ctx.beginPath();
     ctx.arc(this.x + 2, this.y - 2, this.r, 0, Math.PI * 2);
@@ -85,9 +107,8 @@ function loop() {
 }
 loop();
 
-// 滑鼠 / 觸控產生泡泡
 function spawn(x, y) {
-  for (let i = 0; i < 3; i++) {
+  for (let i = 0; i < 2; i++) {
     bubbles.push(new Bubble(x, y));
   }
 }
@@ -101,6 +122,5 @@ canvas.addEventListener("touchstart", e => {
   spawn(t.clientX, t.clientY);
 });
 </script>
-
 </body>
 </html>
