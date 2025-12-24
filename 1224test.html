@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8" />
+<title>Bubble World</title>
+<style>
+  html, body {
+    margin: 0;
+    padding: 0;
+    background: #0e0f14;
+    overflow: hidden;
+  }
+  canvas {
+    display: block;
+  }
+</style>
+</head>
+<body>
+
+<canvas id="c"></canvas>
+
+<script>
+const canvas = document.getElementById("c");
+const ctx = canvas.getContext("2d");
+
+function resize() {
+  canvas.width = window.innerWidth;
+  canvas.height = window.innerHeight;
+}
+window.addEventListener("resize", resize);
+resize();
+
+let bubbles = [];
+let wind = 0.2; // 風速（之後可以接 UI）
+
+class Bubble {
+  constructor(x, y) {
+    this.x = x;
+    this.y = y;
+    this.r = Math.random() * 20 + 10;
+    this.life = 1;
+    this.vy = Math.random() * -0.4 - 0.2;
+    this.vx = (Math.random() - 0.5) * 0.3;
+    this.hue = Math.random() * 360;
+  }
+
+  update() {
+    this.x += this.vx + wind;
+    this.y += this.vy;
+    this.life -= 0.002;
+  }
+
+  draw() {
+    ctx.save();
+    ctx.globalAlpha = this.life;
+
+    // 外圈白光
+    ctx.strokeStyle = "rgba(255,255,255,0.4)";
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.arc(this.x, this.y, this.r, 0, Math.PI * 2);
+    ctx.stroke();
+
+    // 折射彩色邊緣
+    ctx.strokeStyle = `hsla(${this.hue},80%,70%,0.6)`;
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.arc(this.x + 2, this.y - 2, this.r, 0, Math.PI * 2);
+    ctx.stroke();
+
+    ctx.restore();
+  }
+}
+
+function loop() {
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+  bubbles.forEach((b, i) => {
+    b.update();
+    b.draw();
+    if (b.life <= 0) bubbles.splice(i, 1);
+  });
+
+  requestAnimationFrame(loop);
+}
+loop();
+
+// 滑鼠 / 觸控產生泡泡
+function spawn(x, y) {
+  for (let i = 0; i < 3; i++) {
+    bubbles.push(new Bubble(x, y));
+  }
+}
+
+canvas.addEventListener("mousedown", e => {
+  spawn(e.clientX, e.clientY);
+});
+
+canvas.addEventListener("touchstart", e => {
+  const t = e.touches[0];
+  spawn(t.clientX, t.clientY);
+});
+</script>
+
+</body>
+</html>
