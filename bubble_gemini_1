@@ -1,0 +1,747 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>夢幻泡泡實驗室</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;700&display=swap');
+
+        body, html {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background: linear-gradient(135deg, #1a1a2e, #16213e); /* 深色背景更能凸顯泡泡 */
+            font-family: 'Noto Sans TC', sans-serif;
+            user-select: none;
+            -webkit-user-select: none;
+        }
+
+        #canvas-container {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 1;
+            cursor: crosshair;
+        }
+
+        /* UI 層 */
+        #ui-layer {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 10;
+            pointer-events: none; /* 讓點擊穿透到 Canvas */
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+        }
+
+        /* 啟動畫面文字 (Start 泡泡是畫在 Canvas 上的，這裡是輔助提示) */
+        #start-hint {
+            position: absolute;
+            top: 20%;
+            width: 100%;
+            text-align: center;
+            color: rgba(255, 255, 255, 0.6);
+            font-size: 1.2rem;
+            pointer-events: none;
+            transition: opacity 0.5s;
+        }
+
+        /* 工具選擇欄 (頂部) */
+        .toolbar {
+            display: flex;
+            justify-content: center;
+            gap: 15px;
+            padding: 20px;
+            pointer-events: auto;
+            opacity: 0;
+            transform: translateY(-50px);
+            transition: all 0.5s ease-out;
+        }
+
+        .tool-btn {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(5px);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            color: white;
+            padding: 10px 20px;
+            border-radius: 20px;
+            cursor: pointer;
+            font-size: 1rem;
+            transition: all 0.2s;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+
+        .tool-btn:hover {
+            background: rgba(255, 255, 255, 0.2);
+            transform: translateY(-2px);
+        }
+
+        .tool-btn.active {
+            background: rgba(100, 200, 255, 0.4);
+            border-color: rgba(100, 200, 255, 0.8);
+            box-shadow: 0 0 15px rgba(100, 200, 255, 0.4);
+        }
+
+        /* 控制艙 (右下角) */
+        .cockpit {
+            position: absolute;
+            bottom: 20px;
+            right: 20px;
+            width: 280px;
+            background: rgba(0, 0, 0, 0.6);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 15px;
+            padding: 20px;
+            color: white;
+            pointer-events: auto;
+            opacity: 0;
+            transform: translateX(100px);
+            transition: all 0.5s ease-out;
+            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+        }
+
+        .cockpit h3 {
+            margin: 0 0 15px 0;
+            font-size: 1.1rem;
+            border-bottom: 1px solid rgba(255,255,255,0.3);
+            padding-bottom: 5px;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            color: #aaddff;
+        }
+
+        .control-group {
+            margin-bottom: 15px;
+        }
+
+        .control-group label {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.9rem;
+            margin-bottom: 5px;
+            color: #ddd;
+        }
+
+        /* 自定義滑桿樣式 */
+        input[type=range] {
+            -webkit-appearance: none;
+            width: 100%;
+            background: transparent;
+        }
+
+        input[type=range]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            height: 16px;
+            width: 16px;
+            border-radius: 50%;
+            background: #ffffff;
+            cursor: pointer;
+            margin-top: -6px;
+            box-shadow: 0 0 5px rgba(255,255,255,0.8);
+        }
+
+        input[type=range]::-webkit-slider-runnable-track {
+            width: 100%;
+            height: 4px;
+            cursor: pointer;
+            background: rgba(255,255,255,0.3);
+            border-radius: 2px;
+        }
+
+        /* 遊戲狀態 Class */
+        .game-active .toolbar {
+            opacity: 1;
+            transform: translateY(0);
+        }
+        
+        .game-active .cockpit {
+            opacity: 1;
+            transform: translateX(0);
+        }
+        
+        .game-active #start-hint {
+            opacity: 0;
+        }
+
+        .instruction {
+            font-size: 0.8rem;
+            color: #aaa;
+            margin-top: 10px;
+            text-align: center;
+        }
+
+        /* 手機板提示 */
+        @media (max-width: 600px) {
+            .cockpit {
+                width: calc(100% - 40px);
+                bottom: 10px;
+                right: 10px;
+                left: 10px;
+            }
+            .toolbar {
+                flex-wrap: wrap;
+                gap: 5px;
+            }
+            .tool-btn {
+                padding: 8px 12px;
+                font-size: 0.9rem;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <div id="canvas-container">
+        <canvas id="bubbleCanvas"></canvas>
+    </div>
+
+    <div id="ui-layer">
+        <div id="start-hint">
+            <!-- 提示文字會在 Start 泡泡被打破後消失 -->
+            戳破泡泡開始吹氣之旅
+        </div>
+
+        <div class="toolbar" id="toolbar">
+            <button class="tool-btn" onclick="selectTool(0)">🔫 泡泡機</button>
+            <button class="tool-btn" onclick="selectTool(1)">✋ 手手</button>
+            <button class="tool-btn" onclick="selectTool(2)">🧲 M型夾</button>
+        </div>
+
+        <div class="cockpit" id="cockpit">
+            <h3>環境控制艙</h3>
+            
+            <div class="control-group">
+                <label>風速 (Wind) <span id="val-wind">0</span></label>
+                <input type="range" min="-10" max="10" value="2" step="0.5" id="range-wind">
+            </div>
+
+            <div class="control-group">
+                <label>折射角度 (Light) <span id="val-light">45°</span></label>
+                <input type="range" min="0" max="360" value="45" id="range-light">
+            </div>
+
+            <div class="control-group">
+                <label>泡泡韌性 (Life) <span id="val-life">中</span></label>
+                <input type="range" min="50" max="500" value="200" id="range-life">
+            </div>
+
+            <div class="instruction">
+                按住滑鼠 / 鍵盤空白鍵 / 長按螢幕<br>開始吹泡泡
+            </div>
+        </div>
+    </div>
+
+    <script>
+        /**
+         * 夢幻泡泡實驗室 Core Logic
+         */
+        const canvas = document.getElementById('bubbleCanvas');
+        const ctx = canvas.getContext('2d');
+        
+        // 狀態管理
+        const STATE = {
+            START_SCREEN: 0,
+            PLAYING: 1
+        };
+        let currentState = STATE.START_SCREEN;
+
+        // 工具定義
+        const TOOLS = {
+            GUN: 0,   // 雙槍: 快速, 小
+            HAND: 1,  // 手手: 慢速, 成長型
+            WAND: 2   // M型夾: 拖曳拉長型
+        };
+        let currentTool = TOOLS.GUN;
+
+        // 環境變數
+        let env = {
+            wind: 2,
+            lightAngle: 45, // 0-360
+            bubbleLife: 200,
+            gravity: -0.05 // 輕微向上浮力
+        };
+
+        // 互動狀態
+        let pointer = { x: 0, y: 0, isDown: false, downStart: 0 };
+        let width, height;
+
+        // 實體容器
+        let bubbles = [];
+        let particles = []; // 破裂水珠
+        let startBubble = null; // 啟動按鈕泡泡
+
+        // 音效合成 (可選，這裡保持靜音以符合純視覺要求，但預留結構)
+        
+        /* --- 類別定義 --- */
+
+        class Particle {
+            constructor(x, y, color) {
+                this.x = x;
+                this.y = y;
+                this.vx = (Math.random() - 0.5) * 5;
+                this.vy = (Math.random() - 0.5) * 5;
+                this.life = 1.0;
+                this.decay = Math.random() * 0.03 + 0.02;
+                this.color = color;
+                this.size = Math.random() * 2 + 1;
+            }
+
+            update() {
+                this.x += this.vx;
+                this.y += this.vy;
+                this.vy += 0.2; // 重力
+                this.life -= this.decay;
+            }
+
+            draw(ctx) {
+                ctx.globalAlpha = this.life;
+                ctx.fillStyle = this.color;
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.globalAlpha = 1;
+            }
+        }
+
+        class Bubble {
+            constructor(x, y, radius, vx, vy) {
+                this.x = x;
+                this.y = y;
+                this.radius = radius;
+                this.originalRadius = radius;
+                
+                // 物理屬性
+                this.vx = vx;
+                this.vy = vy;
+                
+                // 壽命屬性
+                this.maxLife = env.bubbleLife + Math.random() * 100;
+                this.age = 0;
+                this.popping = false;
+                
+                // 彈性模擬 (Elasticity)
+                this.wobblePhase = Math.random() * Math.PI * 2;
+                this.wobbleSpeed = 0.1 + Math.random() * 0.1;
+                this.wobbleAmp = 0.2; // 初始抖動幅度 (20% 半徑)
+                
+                // 顏色與外觀
+                this.hueOffset = Math.random() * 360;
+            }
+
+            update() {
+                this.age++;
+
+                // 物理運動
+                this.x += this.vx;
+                this.y += this.vy;
+
+                // 環境影響
+                this.vx += (env.wind * 0.01); // 風力
+                this.vx *= 0.99; // 空氣阻力
+                this.vy += env.gravity; // 浮力
+                this.vy *= 0.99;
+
+                // 擾動 (布朗運動)
+                this.x += Math.sin(this.age * 0.05) * 0.5;
+
+                // 彈性衰減 (慢慢變圓)
+                this.wobbleAmp *= 0.98;
+
+                // 邊界檢查 (碰到地板或天花板反彈)
+                if (this.x < -this.radius * 2 || this.x > width + this.radius * 2 || this.y < -100) {
+                    this.popping = true; // 出界就破掉
+                }
+            }
+
+            draw(ctx) {
+                if (this.popping) return;
+
+                // 計算抖動後的形狀
+                const wobble = Math.sin(this.age * this.wobbleSpeed + this.wobblePhase) * this.wobbleAmp;
+                const rx = this.radius * (1 + wobble);
+                const ry = this.radius * (1 - wobble);
+                
+                // 旋轉泡泡 (模擬滾動)
+                const rotation = this.vx * 0.1;
+
+                // 計算透明度 (生命週期：生成->穩定->變灰->破裂)
+                let alpha = 1;
+                let grayness = 0; // 0 = 彩色, 1 = 灰色
+
+                const lifePercent = this.age / this.maxLife;
+                
+                if (lifePercent > 0.8) {
+                    // 快死的時候變透明且變灰
+                    alpha = 1 - ((lifePercent - 0.8) * 5); 
+                    grayness = (lifePercent - 0.8) * 5;
+                }
+                
+                if (lifePercent >= 1) {
+                    this.pop();
+                    return;
+                }
+
+                ctx.save();
+                ctx.translate(this.x, this.y);
+                ctx.rotate(rotation);
+
+                // 繪製泡泡本體
+                ctx.beginPath();
+                ctx.ellipse(0, 0, Math.abs(rx), Math.abs(ry), 0, 0, Math.PI * 2);
+
+                // 1. 填充 - 模擬薄膜干涉 (Iridescence)
+                // 根據光線角度和時間旋轉色相
+                const lightHue = (env.lightAngle + this.age + this.hueOffset) % 360;
+                
+                // 核心透明，邊緣有色彩
+                const gradient = ctx.createRadialGradient(
+                    -rx * 0.3, -ry * 0.3, rx * 0.1, // 光源高光點
+                    0, 0, rx
+                );
+
+                const saturation = 100 * (1 - grayness);
+                const lightness = 50 + (grayness * 20); // 變灰時變亮一點像死皮
+
+                gradient.addColorStop(0, `hsla(0, 0%, 100%, 0)`); // 中心全透
+                gradient.addColorStop(0.8, `hsla(${lightHue}, ${saturation}%, ${lightness}%, ${0.1 * alpha})`);
+                gradient.addColorStop(1, `hsla(${lightHue + 40}, ${saturation}%, ${lightness}%, ${0.3 * alpha})`);
+
+                ctx.fillStyle = gradient;
+                ctx.fill();
+
+                // 2. 邊框 - 油膜感
+                ctx.lineWidth = 1.5;
+                ctx.strokeStyle = `hsla(${lightHue}, ${saturation}%, 80%, ${0.4 * alpha})`;
+                ctx.stroke();
+
+                // 3. 高光 (Reflection) - 模擬窗戶或太陽反光
+                ctx.beginPath();
+                // 在左上角畫一個彎月形高光
+                ctx.ellipse(-rx * 0.4, -ry * 0.4, rx * 0.15, ry * 0.08, Math.PI / 4, 0, Math.PI * 2);
+                ctx.fillStyle = `rgba(255, 255, 255, ${0.6 * alpha})`;
+                ctx.fill();
+
+                // 4. 死前的斑點 (如果快破了)
+                if (grayness > 0.3) {
+                    ctx.fillStyle = `rgba(200, 200, 200, ${0.4 * alpha})`;
+                    for(let i=0; i<3; i++) {
+                        ctx.beginPath();
+                        ctx.arc(rx * 0.5, ry * 0.2 * i, 2, 0, Math.PI*2);
+                        ctx.fill();
+                    }
+                }
+
+                ctx.restore();
+            }
+
+            pop() {
+                this.popping = true;
+                // 產生水珠粒子
+                const particleCount = 6 + Math.floor(this.radius / 5);
+                for (let i = 0; i < particleCount; i++) {
+                    particles.push(new Particle(this.x, this.y, 'rgba(200, 230, 255, 0.8)'));
+                }
+            }
+        }
+
+        class StartBubble extends Bubble {
+            constructor(x, y) {
+                super(x, y, 80, 0, 0);
+                this.maxLife = Infinity; // 不會自然死亡
+            }
+
+            draw(ctx) {
+                if (this.popping) return;
+                super.draw(ctx);
+
+                // 繪製 START 文字
+                ctx.save();
+                ctx.translate(this.x, this.y);
+                ctx.fillStyle = "white";
+                ctx.font = "bold 30px 'Noto Sans TC'";
+                ctx.textAlign = "center";
+                ctx.textBaseline = "middle";
+                ctx.shadowColor = "rgba(0,0,0,0.5)";
+                ctx.shadowBlur = 5;
+                ctx.fillText("START", 0, 0);
+                
+                // 提示文字
+                ctx.font = "14px 'Noto Sans TC'";
+                ctx.fillStyle = "rgba(255,255,255,0.8)";
+                ctx.fillText("戳破我 / Pop Me", 0, 25);
+                ctx.restore();
+            }
+        }
+
+        /* --- 系統邏輯 --- */
+
+        function init() {
+            resize();
+            window.addEventListener('resize', resize);
+            
+            // Start Bubble
+            resetStartBubble();
+
+            // 事件監聽
+            canvas.addEventListener('mousedown', handlePointerDown);
+            window.addEventListener('mouseup', handlePointerUp);
+            canvas.addEventListener('mousemove', handlePointerMove);
+            
+            canvas.addEventListener('touchstart', (e) => {
+                e.preventDefault(); // 防止滾動
+                handlePointerDown(e.touches[0]);
+            }, {passive: false});
+            window.addEventListener('touchend', handlePointerUp);
+            canvas.addEventListener('touchmove', (e) => {
+                e.preventDefault();
+                handlePointerMove(e.touches[0]);
+            }, {passive: false});
+
+            // 鍵盤控制
+            window.addEventListener('keydown', (e) => {
+                if (e.code === 'Space' && !pointer.isDown) {
+                    pointer.isDown = true;
+                    pointer.downStart = Date.now();
+                    // 模擬滑鼠在中心
+                    if (pointer.x === 0 && pointer.y === 0) {
+                        pointer.x = width / 2;
+                        pointer.y = height / 2;
+                    }
+                }
+            });
+            window.addEventListener('keyup', (e) => {
+                if (e.code === 'Space') {
+                    handlePointerUp();
+                }
+            });
+
+            // UI 綁定
+            setupUI();
+
+            requestAnimationFrame(loop);
+        }
+
+        function setupUI() {
+            document.getElementById('range-wind').addEventListener('input', (e) => {
+                env.wind = parseFloat(e.target.value);
+                document.getElementById('val-wind').innerText = env.wind;
+            });
+            document.getElementById('range-light').addEventListener('input', (e) => {
+                env.lightAngle = parseInt(e.target.value);
+                document.getElementById('val-light').innerText = env.lightAngle + "°";
+            });
+            document.getElementById('range-life').addEventListener('input', (e) => {
+                env.bubbleLife = parseInt(e.target.value);
+                let txt = "短";
+                if(env.bubbleLife > 150) txt = "中";
+                if(env.bubbleLife > 350) txt = "長";
+                document.getElementById('val-life').innerText = txt;
+            });
+        }
+
+        function resize() {
+            width = canvas.width = window.innerWidth;
+            height = canvas.height = window.innerHeight;
+            if (currentState === STATE.START_SCREEN && startBubble) {
+                startBubble.x = width / 2;
+                startBubble.y = height / 2;
+            }
+        }
+
+        function resetStartBubble() {
+            startBubble = new StartBubble(width / 2, height / 2);
+        }
+
+        // 輸入處理
+        function handlePointerDown(e) {
+            pointer.x = e.clientX;
+            pointer.y = e.clientY;
+            pointer.isDown = true;
+            pointer.downStart = Date.now();
+
+            if (currentState === STATE.START_SCREEN) {
+                // 檢查是否點到 Start 泡泡
+                const dx = pointer.x - startBubble.x;
+                const dy = pointer.y - startBubble.y;
+                if (Math.sqrt(dx*dx + dy*dy) < startBubble.radius) {
+                    startBubble.pop();
+                    setTimeout(startGame, 200);
+                }
+            } else if (currentTool === TOOLS.WAND) {
+                // M型夾邏輯：記錄起點
+                pointer.startX = pointer.x;
+                pointer.startY = pointer.y;
+            }
+        }
+
+        function handlePointerMove(e) {
+            pointer.x = e.clientX;
+            pointer.y = e.clientY;
+        }
+
+        function handlePointerUp() {
+            if (!pointer.isDown) return;
+            
+            pointer.isDown = false;
+            const duration = Date.now() - pointer.downStart;
+
+            if (currentState === STATE.PLAYING) {
+                // 手手工具：放開時如果還沒發射 (雖然 updateToolHand 自動處理，但也許有蓄力機制)
+                // 這裡主要處理 M型夾的發射
+                if (currentTool === TOOLS.WAND) {
+                    fireWandBubble();
+                }
+            }
+        }
+
+        function startGame() {
+            currentState = STATE.PLAYING;
+            document.body.classList.add('game-active');
+            
+            // 更新 UI 狀態
+            const btns = document.querySelectorAll('.tool-btn');
+            btns.forEach((btn, idx) => {
+                if (idx === 0) btn.classList.add('active');
+            });
+        }
+
+        window.selectTool = function(toolIndex) {
+            currentTool = toolIndex;
+            // 更新 UI
+            const btns = document.querySelectorAll('.tool-btn');
+            btns.forEach((btn, idx) => {
+                if (idx === toolIndex) btn.classList.add('active');
+                else btn.classList.remove('active');
+            });
+        }
+
+        // 工具產生邏輯
+        function updateTools() {
+            if (!pointer.isDown) return;
+
+            if (currentTool === TOOLS.GUN) {
+                // 雙槍：頻率快，一次兩顆，位置稍微偏移
+                if (Date.now() % 100 < 20) { // 簡單的頻率控制
+                    const offset = 20;
+                    spawnBubble(pointer.x - offset, pointer.y, 10 + Math.random() * 5);
+                    spawnBubble(pointer.x + offset, pointer.y, 10 + Math.random() * 5);
+                }
+            } else if (currentTool === TOOLS.HAND) {
+                // 手手：慢速，中型泡泡
+                if (Date.now() % 500 < 20) {
+                    spawnBubble(pointer.x, pointer.y, 30 + Math.random() * 10);
+                }
+            }
+            // WAND 在 update 中只負責繪製拉伸線，發射在 mouseup
+        }
+
+        function fireWandBubble() {
+            // 計算拉伸距離
+            const dx = pointer.x - pointer.startX;
+            const dy = pointer.y - pointer.startY;
+            const dist = Math.sqrt(dx*dx + dy*dy);
+            
+            // 根據拉伸長度決定大小，有上限
+            let radius = Math.min(dist * 0.4, 150); 
+            if (radius < 20) radius = 20; // 最小限制
+
+            // 根據拉伸方向產生反向速度 (彈弓效應)
+            const velocityScale = 0.15;
+            const vx = -dx * velocityScale + (env.wind * 2); // 加上風的影響
+            const vy = -dy * velocityScale;
+
+            // 產生大泡泡
+            const b = new Bubble(pointer.x, pointer.y, radius, vx, vy);
+            // 大泡泡抖動更厲害
+            b.wobbleAmp = 0.4; 
+            bubbles.push(b);
+        }
+
+        function spawnBubble(x, y, baseRadius) {
+            // 根據滑鼠移動產生初始速度
+            const vx = (Math.random() - 0.5) * 2 + (env.wind * 0.5);
+            const vy = (Math.random() - 0.5) * 2 - 2; // 稍微向上噴
+            bubbles.push(new Bubble(x, y, baseRadius, vx, vy));
+        }
+
+        // 繪製 M型夾的拉伸線
+        function drawWandVisuals() {
+            if (currentState === STATE.PLAYING && currentTool === TOOLS.WAND && pointer.isDown) {
+                ctx.save();
+                ctx.beginPath();
+                // 模擬一個三角形或梯形膜
+                ctx.moveTo(pointer.startX - 30, pointer.startY);
+                ctx.lineTo(pointer.x, pointer.y); // 滑鼠位置
+                ctx.lineTo(pointer.startX + 30, pointer.startY);
+                
+                // 填充油膜感
+                ctx.fillStyle = "rgba(255, 255, 255, 0.2)";
+                ctx.fill();
+                
+                // 邊框線
+                ctx.strokeStyle = "rgba(255, 255, 255, 0.5)";
+                ctx.lineWidth = 2;
+                ctx.stroke();
+                
+                // 畫出兩個控制點 (夾子頭)
+                ctx.fillStyle = "#aaa";
+                ctx.beginPath();
+                ctx.arc(pointer.startX - 30, pointer.startY, 5, 0, Math.PI*2);
+                ctx.arc(pointer.startX + 30, pointer.startY, 5, 0, Math.PI*2);
+                ctx.fill();
+                ctx.restore();
+            }
+        }
+
+        /* --- 主迴圈 --- */
+        function loop() {
+            // 清除畫布
+            ctx.clearRect(0, 0, width, height);
+
+            if (currentState === STATE.START_SCREEN) {
+                if (startBubble) {
+                    startBubble.update();
+                    startBubble.draw(ctx);
+                }
+            } else {
+                updateTools();
+                drawWandVisuals();
+            }
+
+            // 更新與繪製泡泡
+            for (let i = bubbles.length - 1; i >= 0; i--) {
+                bubbles[i].update();
+                bubbles[i].draw(ctx);
+                if (bubbles[i].popping) {
+                    bubbles.splice(i, 1);
+                }
+            }
+
+            // 更新與繪製粒子
+            for (let i = particles.length - 1; i >= 0; i--) {
+                particles[i].update();
+                particles[i].draw(ctx);
+                if (particles[i].life <= 0) {
+                    particles.splice(i, 1);
+                }
+            }
+
+            requestAnimationFrame(loop);
+        }
+
+        // 啟動
+        init();
+
+    </script>
+</body>
+</html>
