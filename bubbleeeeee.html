@@ -1,0 +1,1518 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>夢幻泡泡實驗室</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;700;900&display=swap');
+
+        body, html {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background: linear-gradient(135deg, #1a1a2e, #16213e);
+            font-family: 'Noto Sans TC', sans-serif;
+            user-select: none;
+            -webkit-user-select: none;
+        }
+
+        #canvas-container {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 1;
+            cursor: crosshair;
+        }
+
+        #ui-layer {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 10;
+            pointer-events: none;
+        }
+
+        #start-hint {
+            position: absolute;
+            top: 20%;
+            width: 100%;
+            text-align: center;
+            color: rgba(255, 255, 255, 0.6);
+            font-size: 1.2rem;
+            pointer-events: none;
+            transition: opacity 0.5s;
+        }
+
+        /* --- 側邊工具欄 (Sidebar) --- */
+        .sidebar {
+            position: absolute;
+            right: 20px;
+            top: 50%;
+            transform: translateY(-50%);
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            pointer-events: auto;
+            z-index: 100;
+        }
+
+        .sidebar-btn-container { position: relative; }
+
+        .sidebar-btn {
+            background: rgba(255, 255, 255, 0.15);
+            backdrop-filter: blur(5px);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            border-radius: 12px;
+            width: 50px;
+            height: 50px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            cursor: pointer;
+            transition: all 0.2s;
+            color: white;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.2);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .sidebar-btn:hover {
+            background: rgba(255, 255, 255, 0.25);
+            transform: scale(1.1);
+        }
+
+        .sidebar-btn.active {
+            background: rgba(100, 200, 255, 0.4);
+            border-color: rgba(100, 200, 255, 0.8);
+            box-shadow: 0 0 10px rgba(100, 200, 255, 0.4);
+        }
+
+        /* 針的超級模式樣式 */
+        .sidebar-btn.super-mode {
+            background: rgba(255, 50, 50, 0.4);
+            border-color: rgba(255, 100, 100, 0.8);
+            box-shadow: 0 0 15px rgba(255, 50, 50, 0.6);
+            animation: shake 0.5s infinite;
+        }
+
+        @keyframes shake {
+            0% { transform: translate(1px, 1px) rotate(0deg); }
+            50% { transform: translate(-1px, 2px) rotate(-1deg); }
+            100% { transform: translate(1px, -2px) rotate(-1deg); }
+        }
+
+        .sidebar-btn svg {
+            width: 28px;
+            height: 28px;
+            fill: none;
+            stroke: currentColor;
+            stroke-width: 2;
+            stroke-linecap: round;
+            stroke-linejoin: round;
+        }
+        
+        #file-input { display: none; }
+
+        /* --- 懸浮說明 (Tooltip) --- */
+        .tooltip {
+            position: absolute;
+            right: 65px; 
+            top: 50%;
+            transform: translateY(-50%) translateX(10px);
+            background: rgba(255, 255, 255, 0.85); 
+            color: #333;
+            padding: 10px 15px;
+            border-radius: 8px;
+            width: max-content;
+            max-width: 200px;
+            pointer-events: none;
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.3s cubic-bezier(0.18, 0.89, 0.32, 1.28);
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+            text-align: left;
+            z-index: 1000;
+        }
+
+        .tooltip::after {
+            content: '';
+            position: absolute;
+            top: 50%;
+            right: -6px;
+            margin-top: -6px;
+            border-width: 6px;
+            border-style: solid;
+            border-color: transparent transparent transparent rgba(255, 255, 255, 0.85);
+        }
+
+        .sidebar-btn-container:hover .tooltip {
+            opacity: 1;
+            visibility: visible;
+            transform: translateY(-50%) translateX(0);
+        }
+
+        .tooltip-title {
+            font-size: 1.1rem;
+            font-weight: 900;
+            color: #1a1a2e;
+            margin-bottom: 4px;
+            display: block;
+        }
+
+        .tooltip-content {
+            font-size: 0.85rem;
+            line-height: 1.4;
+            color: #444;
+        }
+
+        .bold-big {
+            font-weight: 900;
+            font-size: 1.1em;
+            color: #000;
+        }
+
+        /* --- 彈出面板 (通用) --- */
+        .pop-panel {
+            position: absolute;
+            background: rgba(0, 0, 0, 0.7);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 15px;
+            padding: 10px;
+            pointer-events: auto;
+            display: none; 
+            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+            animation: popIn 0.3s cubic-bezier(0.18, 0.89, 0.32, 1.28);
+            z-index: 150;
+        }
+
+        @keyframes popIn {
+            from { opacity: 0; transform: scale(0.9); }
+            to { opacity: 1; transform: scale(1); }
+        }
+
+        .pop-panel.show { display: flex; }
+
+        /* 1. 生成面板 (小面板) */
+        #panel-gen {
+            right: 85px;
+            top: 100px;
+            width: auto;
+            flex-direction: row; 
+            align-items: center;
+            padding: 5px;
+            border-radius: 12px;
+        }
+
+        /* 2. 環境變因面板 (橫式) */
+        #panel-env {
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: auto;
+            min-width: 450px;
+            max-width: 95vw; 
+            flex-direction: row;
+            align-items: center;
+            justify-content: space-around;
+            padding: 15px 25px;
+            border-radius: 20px;
+        }
+
+        /* 3. 泡泡變因面板 (橫式) */
+        #panel-bubble-vars {
+            bottom: 120px; 
+            left: 50%;
+            transform: translateX(-50%);
+            width: auto;
+            min-width: 550px;
+            max-width: 95vw; 
+            flex-direction: row;
+            align-items: center;
+            justify-content: space-around;
+            padding: 15px 25px;
+            border-radius: 20px;
+        }
+
+        .panel-header { display: none; }
+        .close-btn { display: none; }
+
+        .tool-grid { display: flex; gap: 5px; }
+
+        .sub-tool-btn {
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            color: white;
+            border-radius: 8px;
+            cursor: pointer;
+            width: 45px;
+            height: 45px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            transition: all 0.2s;
+        }
+        .sub-tool-btn:hover { background: rgba(255,255,255,0.2); }
+        .sub-tool-btn.active { 
+            background: rgba(100, 200, 255, 0.4); 
+            border-color: rgba(100, 200, 255, 0.8);
+            box-shadow: 0 0 8px rgba(100, 200, 255, 0.4);
+        }
+        .sub-tool-btn svg { width: 24px; height: 24px; fill: none; stroke: currentColor; stroke-width: 2; }
+
+        /* 變因面板內部佈局 */
+        .vars-container {
+            display: flex;
+            flex-direction: row;
+            align-items: flex-start;
+            width: 100%;
+            gap: 25px;
+        }
+
+        .section-wind-dir {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 5px;
+            min-width: 80px;
+            justify-content: center;
+            height: 100%;
+        }
+
+        .section-sliders {
+            display: flex;
+            flex-direction: row;
+            gap: 25px;
+            flex: 1;
+            width: 100%;
+        }
+
+        .control-item {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+            flex: 1;
+        }
+
+        .label-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            width: 100%;
+        }
+
+        .panel-label {
+            font-size: 0.85rem;
+            color: #aaddff;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            white-space: nowrap;
+        }
+        
+        .panel-sub-text {
+            font-size: 0.7rem;
+            color: rgba(255,255,255,0.5);
+            margin-left: 2px;
+        }
+
+        .value-box {
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            background: rgba(100, 200, 255, 0.15);
+            border-radius: 4px;
+            padding: 1px 6px;
+            font-size: 0.8rem;
+            color: #fff;
+            min-width: 30px;
+            text-align: center;
+        }
+
+        .random-btn {
+            background: rgba(255,255,255,0.1);
+            border: 1px solid rgba(255,255,255,0.4);
+            border-radius: 50%; 
+            width: 18px;
+            height: 18px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 0.65rem;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.2s;
+            padding: 0;
+            margin-left: 5px;
+        }
+        .random-btn.active {
+            background: #aaddff;
+            color: #1a1a2e;
+            border-color: #aaddff;
+            box-shadow: 0 0 5px rgba(170, 221, 255, 0.5);
+        }
+
+        .compass {
+            width: 60px;
+            height: 60px;
+            position: relative;
+            background: rgba(255,255,255,0.05);
+            border-radius: 50%;
+            border: 2px solid rgba(255,255,255,0.2);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            cursor: pointer;
+            touch-action: none;
+        }
+
+        .compass-label { position: absolute; font-size: 8px; color: rgba(255,255,255,0.5); font-weight: bold; }
+        .compass-label.n { top: 2px; } .compass-label.e { right: 2px; } .compass-label.s { bottom: 2px; } .compass-label.w { left: 2px; }
+        .compass-control-ring { position: absolute; width: 100%; height: 100%; border-radius: 50%; border: 2px dashed #aaddff; opacity: 0; transition: opacity 0.3s; pointer-events: none; animation: spin 10s linear infinite; }
+        .compass:hover .compass-control-ring, .compass.active .compass-control-ring { opacity: 0.5; }
+        @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+        
+        .compass-arrow-container {
+            width: 40px;
+            height: 40px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        input[type=range] { -webkit-appearance: none; width: 100%; background: transparent; cursor: pointer; margin-top: 2px; }
+        input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; height: 14px; width: 14px; border-radius: 50%; background: #ffffff; cursor: pointer; margin-top: -5px; box-shadow: 0 0 5px rgba(255,255,255,0.8); border: 1px solid #ddd; }
+        input[type=range]::-webkit-slider-runnable-track { width: 100%; height: 4px; cursor: pointer; background: rgba(255,255,255,0.3); border-radius: 2px; }
+        .tick-marks { display: flex; justify-content: space-between; font-size: 9px; color: rgba(255,255,255,0.4); margin-top: 0px; padding: 0 2px; }
+        .tick-marks span.bold-white { color: #ffffff; font-weight: bold; font-size: 10px; }
+
+        /* --- 暫停閃爍動畫 --- */
+        #pause-overlay {
+            position: absolute;
+            top: 50%; left: 50%;
+            transform: translate(-50%, -50%);
+            pointer-events: none;
+            z-index: 1000;
+            opacity: 0;
+        }
+        
+        #pause-icon, #play-icon {
+            width: 100px;
+            height: 100px;
+            fill: rgba(255, 255, 255, 0.8);
+            filter: drop-shadow(0 0 10px rgba(0,0,0,0.5));
+            display: none;
+        }
+
+        .animate-flash {
+            animation: flashAnim 0.6s ease-out forwards;
+        }
+
+        @keyframes flashAnim {
+            0% { opacity: 0; transform: translate(-50%, -50%) scale(0.5); }
+            50% { opacity: 1; transform: translate(-50%, -50%) scale(1.2); }
+            100% { opacity: 0; transform: translate(-50%, -50%) scale(1.5); }
+        }
+
+        @media (max-width: 650px) {
+            .sidebar { right: 10px; gap: 10px; }
+            .pop-panel { right: 70px; }
+            .sidebar-btn { width: 40px; height: 40px; }
+            .tooltip { display: none; } 
+            
+            #panel-env, #panel-bubble-vars {
+                flex-direction: column;
+                min-width: auto;
+                width: 90%;
+                padding: 15px;
+            }
+            #panel-env { bottom: 200px; } 
+            #panel-bubble-vars { bottom: 10px; }
+
+            .vars-container {
+                flex-direction: column;
+                gap: 15px;
+            }
+            .section-sliders {
+                grid-template-columns: 1fr; 
+                gap: 15px;
+                width: 100%;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <div id="canvas-container">
+        <canvas id="bubbleCanvas"></canvas>
+    </div>
+
+    <!-- 隱藏的圖片上傳輸入框 -->
+    <input type="file" id="file-input" accept="image/*">
+
+    <!-- 暫停閃爍圖層 -->
+    <div id="pause-overlay">
+        <svg id="pause-icon" viewBox="0 0 24 24"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>
+        <svg id="play-icon" viewBox="0 0 24 24"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+    </div>
+
+    <div id="ui-layer">
+        <div id="start-hint">
+            戳破泡泡開始吹氣之旅
+        </div>
+
+        <!-- 直式側邊工具欄 -->
+        <div class="sidebar">
+            
+            <!-- 1. 生成 (泡泡) -->
+            <div class="sidebar-btn-container">
+                <div class="sidebar-btn" id="btn-main-gen" onclick="togglePopPanel('panel-gen')">
+                    <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/></svg>
+                </div>
+                <div class="tooltip">
+                    <span class="tooltip-title">泡泡生成</span>
+                    <span class="tooltip-content"> </span>
+                </div>
+            </div>
+
+            <!-- 2. 針 (破壞) - 支援雙擊超級模式 -->
+            <div class="sidebar-btn-container">
+                <div class="sidebar-btn" id="btn-main-needle" onclick="selectMainTool(TOOLS.NEEDLE)" ondblclick="toggleNeedleSuper()">
+                    <svg viewBox="0 0 24 24"><path d="M22 2l-9.5 9.5M22 2l-2 8L18 2zM2 22l9.5-9.5M2 22l8-2 2-8z"/></svg>
+                </div>
+                <div class="tooltip">
+                    <span class="tooltip-title">針</span>
+                    <span class="tooltip-content">啵啵啵!!!<span class="bold-big">毀滅吧，世界</span><br>哇哈哈哈哈!!!<br>(雙擊開啟超級模式)</span>
+                </div>
+            </div>
+
+            <!-- 3. 環境變因 (風) -->
+            <div class="sidebar-btn-container">
+                <div class="sidebar-btn" id="btn-main-env" onclick="togglePopPanel('panel-env')">
+                    <!-- 風的圖示 -->
+                    <svg viewBox="0 0 24 24"><path d="M9.59 4.59A2 2 0 1 1 11 8H2m10.59 11.41A2 2 0 1 0 14 16H2m15.73-8.27A2.5 2.5 0 1 1 19.5 12H2"/></svg>
+                </div>
+                <div class="tooltip">
+                    <span class="tooltip-title">環境變因</span>
+                    <span class="tooltip-content">風向與風速</span>
+                </div>
+            </div>
+
+            <!-- 4. 泡泡變因 (調整) -->
+            <div class="sidebar-btn-container">
+                <div class="sidebar-btn" id="btn-main-bubble-vars" onclick="togglePopPanel('panel-bubble-vars')">
+                    <!-- 調整圖示 -->
+                    <svg viewBox="0 0 24 24"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+                </div>
+                <div class="tooltip">
+                    <span class="tooltip-title">泡泡變因</span>
+                    <span class="tooltip-content">大小、速率與韌性</span>
+                </div>
+            </div>
+
+            <!-- 5. 照相機 (上傳背景) -->
+            <div class="sidebar-btn-container">
+                <div class="sidebar-btn" onclick="document.getElementById('file-input').click()">
+                    <!-- 上傳/相機圖示 -->
+                    <svg viewBox="0 0 24 24"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+                </div>
+                <div class="tooltip">
+                    <span class="tooltip-title">上傳照片</span>
+                    <span class="tooltip-content">上傳背景照片以產生折射效果<br>(雙擊背景可切換大小)</span>
+                </div>
+            </div>
+
+            <!-- 6. 暫停/開始 -->
+            <div class="sidebar-btn-container">
+                <div class="sidebar-btn" id="btn-pause" onclick="togglePause()">
+                    <svg id="icon-pause-state" viewBox="0 0 24 24" style="display:block"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>
+                    <svg id="icon-play-state" viewBox="0 0 24 24" style="display:none"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+                </div>
+            </div>
+
+        </div>
+
+        <!-- 彈出面板: 生成 (緊湊型) -->
+        <div class="pop-panel" id="panel-gen">
+            <div class="tool-grid">
+                <div class="sub-tool-btn" id="btn-sub-gun" onclick="selectSubTool(TOOLS.GUN)" title="泡泡槍">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M6 15h12l-3-8H9l-3 8zM3 21h18M2 18h20M5 18l1-3M19 18l-1-3M12 7V3M12 21v-3"/></svg>
+                </div>
+                <div class="sub-tool-btn" id="btn-sub-wand" onclick="selectSubTool(TOOLS.WAND)" title="M型夾">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><circle cx="6" cy="12" r="4"/><circle cx="18" cy="12" r="4"/><path d="M10 12h4"/></svg>
+                </div>
+                <div class="sub-tool-btn" id="btn-sub-random" onclick="selectSubTool(TOOLS.RANDOM)" title="隨機跳躍 ?!">
+                    <span style="font-weight:900; color:#ffddaa; font-size:1.2rem;">?!</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- 彈出面板: 環境變因 (風向+風速) -->
+        <div class="pop-panel" id="panel-env">
+            <div class="vars-container">
+                <!-- 左側：風向 -->
+                <div class="section-wind-dir">
+                    <div style="display: flex; align-items: center; gap: 5px;">
+                        <span class="panel-label">風向</span>
+                        <button class="random-btn active" id="btn-rand-dir" onclick="toggleRandom('dir')">?!</button>
+                    </div>
+                    
+                    <div class="compass" id="windCompass">
+                        <div class="compass-control-ring"></div>
+                        <div class="compass-label n">N</div>
+                        <div class="compass-label e">E</div>
+                        <div class="compass-label s">S</div>
+                        <div class="compass-label w">W</div>
+                        
+                        <div class="compass-arrow-container" id="compassArrow">
+                            <svg viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                <path d="M50 85 L50 15" stroke="white" stroke-width="6" stroke-linecap="round"/>
+                                <path d="M35 35 L50 10 L65 35" fill="white" stroke="none"/>
+                            </svg>
+                        </div>
+                    </div>
+                    <div class="value-box" id="val-degree">0°</div>
+                </div>
+
+                <!-- 右側：風速 -->
+                <div class="section-sliders">
+                    <div class="control-item">
+                        <div class="label-row">
+                            <span class="panel-label">風速 <span class="panel-sub-text">蒲氏風級</span></span>
+                            <div style="display: flex; align-items: center; gap: 5px;">
+                                <button class="random-btn" id="btn-rand-speed" onclick="toggleRandom('speed')">?!</button>
+                                <div class="value-box" id="val-wind">2</div>
+                            </div>
+                        </div>
+                        <input type="range" min="0" max="17" value="2" step="1" id="range-wind">
+                        <div class="tick-marks">
+                            <span class="bold-white">0</span><span>|</span><span>|</span><span>|</span><span>|</span>
+                            <span class="bold-white">5</span><span>|</span><span>|</span><span>|</span><span>|</span>
+                            <span class="bold-white">10</span><span>|</span><span>|</span><span>|</span><span>|</span>
+                            <span class="bold-white">15</span><span>|</span><span class="bold-white">17</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 彈出面板: 泡泡變因 (大小+速率+韌性) -->
+        <div class="pop-panel" id="panel-bubble-vars">
+            <div class="section-sliders">
+                <!-- 1. 泡泡大小 -->
+                <div class="control-item">
+                    <div class="label-row">
+                        <span class="panel-label">大小 <button class="random-btn" id="btn-rand-size" onclick="toggleRandom('size')">?!</button></span>
+                        <div class="value-box" id="val-size">1x</div>
+                    </div>
+                    <input type="range" min="50" max="250" value="100" step="10" id="range-size">
+                    <div class="tick-marks">
+                        <span>小</span><span>中</span><span>大</span>
+                    </div>
+                </div>
+
+                <!-- 2. 產生速率 -->
+                <div class="control-item">
+                    <div class="label-row">
+                        <span class="panel-label">速率 <button class="random-btn" id="btn-rand-rate" onclick="toggleRandom('rate')">?!</button></span>
+                        <div class="value-box" id="val-rate">正常</div>
+                    </div>
+                    <input type="range" min="0" max="100" value="50" step="10" id="range-rate">
+                    <div class="tick-marks">
+                        <span>慢</span><span>正常</span><span>快</span>
+                    </div>
+                </div>
+
+                <!-- 3. 韌性 -->
+                <div class="control-item">
+                    <div class="label-row">
+                        <span class="panel-label">韌性 <button class="random-btn" id="btn-rand-life" onclick="toggleRandom('life')">?!</button></span>
+                        <div class="value-box" id="val-life">中</div>
+                    </div>
+                    <input type="range" min="0" max="2" value="1" step="1" id="range-life">
+                    <div class="tick-marks" style="justify-content: space-between; padding: 0 5px;">
+                        <span class="bold-white">低</span><span></span><span class="bold-white">高</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+        const SoundManager = {
+            ctx: null,
+            init: function() {
+                try {
+                    window.AudioContext = window.AudioContext || window.webkitAudioContext;
+                    this.ctx = new AudioContext();
+                } catch(e) { console.error("Web Audio API not supported"); }
+            },
+            playPop: function() {
+                if (!this.ctx) this.init();
+                if (this.ctx && this.ctx.state === 'suspended') this.ctx.resume();
+                if (!this.ctx) return;
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(800, this.ctx.currentTime);
+                osc.frequency.exponentialRampToValueAtTime(100, this.ctx.currentTime + 0.1);
+                gain.gain.setValueAtTime(0.3, this.ctx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + 0.1);
+                osc.connect(gain); gain.connect(this.ctx.destination);
+                osc.start(); osc.stop(this.ctx.currentTime + 0.1);
+            }
+        };
+
+        const canvas = document.getElementById('bubbleCanvas');
+        const ctx = canvas.getContext('2d');
+        
+        const STATE = { START_SCREEN: 0, PLAYING: 1, PAUSED: 2 };
+        let currentState = STATE.START_SCREEN;
+
+        // 移除 BLOWER
+        const TOOLS = { GUN: 0, HAND: 1, WAND: 2, NEEDLE: 3, RANDOM: 5 };
+        let currentTool = TOOLS.GUN;
+        let lastGenTool = TOOLS.GUN; 
+        
+        // 針的超級模式狀態
+        let isNeedleSuper = false;
+
+        let env = { 
+            windSpeedLevel: 2, windDirectionAngle: 0, bubbleLifeLevel: 1, gravity: 0,
+            bubbleSizeLevel: 100, genRateLevel: 50 
+        };
+
+        let targetEnv = { 
+            windSpeedLevel: 2, windDirectionAngle: 0, bubbleLifeLevel: 1,
+            bubbleSizeLevel: 100, genRateLevel: 50
+        };
+
+        let randomState = { dir: true, speed: false, life: false, size: false, rate: false };
+        let randomTimers = { dir: 0, speed: 0, life: 0, size: 0, rate: 0 };
+
+        let pointer = { x: 0, y: 0, isDown: false, downStart: 0, startX: 0, startY: 0, vx: 0, vy: 0 };
+        let lastPointer = { x: 0, y: 0 };
+        let width, height;
+        let frameCount = 0; 
+        
+        let randomSizeTime = 0;
+        let randomSpawnPoint = { x: 0, y: 0 };
+
+        let bubbles = [];
+        let particles = []; 
+        let startBubble = null; 
+        
+        let wandState = { active: false, startX: 0, startY: 0, endX: 0, endY: 0, recoiling: false, recoilProgress: 0 };
+        
+        // 背景圖片管理
+        let backgroundImage = null;
+        let bgScale = 1.0; // 背景縮放倍率
+        let bgMetrics = { drawX:0, drawY:0, drawW:0, drawH:0, ratio:1 };
+
+        class Particle {
+            constructor(x, y, color) {
+                this.x = x; this.y = y;
+                this.vx = (Math.random() - 0.5) * 5; this.vy = (Math.random() - 0.5) * 5;
+                this.life = 1.0; this.decay = Math.random() * 0.03 + 0.02;
+                this.color = color; this.size = Math.random() * 2 + 1;
+            }
+            update() { this.x += this.vx; this.y += this.vy; this.vy += 0.2; this.life -= this.decay; }
+            draw(ctx) {
+                ctx.globalAlpha = this.life; ctx.fillStyle = this.color;
+                ctx.beginPath(); ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2); ctx.fill();
+                ctx.globalAlpha = 1;
+            }
+        }
+
+        class Bubble {
+            constructor(x, y, radius, vx, vy) {
+                this.x = x; this.y = y; 
+                const scale = env.bubbleSizeLevel / 100;
+                this.radius = radius * scale; 
+                this.originalRadius = this.radius;
+                this.vx = vx; this.vy = vy;
+                this.children = []; 
+                let lifeLevel = Math.round(env.bubbleLifeLevel);
+                let baseLife = 100;
+                if(lifeLevel === 1) baseLife = 300; if(lifeLevel === 2) baseLife = 600;
+                this.maxLife = baseLife + Math.random() * 100;
+                this.age = 0; this.popping = false;
+                this.wobblePhase = Math.random() * Math.PI * 2;
+                this.wobbleSpeed = 0.1 + Math.random() * 0.1; this.wobbleAmp = 0.1; 
+                this.baseHue = Math.random() * 360;
+                this.spectrumStep = 30 + Math.random() * 60;
+                this.satVar = (Math.random() - 0.5) * 20; this.lightVar = (Math.random() - 0.5) * 10; 
+            }
+            captureChild(child) {
+                this.children.push(child);
+                child.relX = child.x - this.x; child.relY = child.y - this.y;
+                child.orbitAngle = Math.atan2(child.relY, child.relX);
+                child.orbitDist = Math.sqrt(child.relX*child.relX + child.relY*child.relY);
+                child.orbitSpeed = (Math.random() - 0.5) * 0.05;
+            }
+            update() {
+                this.age++;
+                if (env.windSpeedLevel < 0.1) {
+                    this.vx *= 0.9; this.vy *= 0.9;
+                    this.x += Math.sin(this.age * 0.02 + this.baseHue) * 0.1;
+                    this.y += Math.cos(this.age * 0.02 + this.baseHue) * 0.1;
+                } else {
+                    this.x += this.vx; this.y += this.vy;
+                    const rad = (env.windDirectionAngle - 90) * Math.PI / 180;
+                    const speedFactor = env.windSpeedLevel * 0.005; 
+                    this.vx += Math.cos(rad) * speedFactor; this.vy += Math.sin(rad) * speedFactor;
+                    this.vx *= 0.99; this.vy += -0.02; this.vy *= 0.99;
+                    this.x += Math.sin(this.age * 0.05) * 0.3;
+                }
+                this.wobbleAmp *= 0.99;
+                const pad = this.radius * 2;
+                if (this.x < -pad || this.x > width + pad || this.y < -pad || this.y > height + pad) this.popping = true; 
+            }
+            draw(ctx) {
+                if (this.popping) return;
+                const wobble = Math.sin(this.age * this.wobbleSpeed + this.wobblePhase) * this.wobbleAmp;
+                const rx = this.radius * (1 + wobble); const ry = this.radius * (1 - wobble);
+                const rotation = this.vx * 0.05;
+                let alpha = 1; let grayness = 0; 
+                const lifePercent = this.age / this.maxLife;
+                if (lifePercent > 0.8) { alpha = 1 - ((lifePercent - 0.8) * 5); grayness = (lifePercent - 0.8) * 5; }
+                if (lifePercent >= 1) { this.pop(); return; }
+
+                ctx.save();
+                
+                // --- 擬真折射效果 ---
+                if (backgroundImage) {
+                    ctx.save();
+                    ctx.translate(this.x, this.y);
+                    ctx.rotate(rotation);
+                    ctx.beginPath();
+                    ctx.ellipse(0, 0, Math.abs(rx), Math.abs(ry), 0, 0, Math.PI * 2);
+                    ctx.clip(); // 限制繪製區域
+
+                    if (this.radius > 30) {
+                        // 大泡泡：局部正面放大 (Magnifying Glass)
+                        const zoom = 1.5; // 放大倍率
+                        // 計算泡泡在背景圖上的對應位置
+                        // bgMetrics: {drawX, drawY, drawW, drawH, ratio}
+                        // 泡泡中心相對於背景圖繪製區的座標
+                        const relX = this.x - bgMetrics.drawX;
+                        const relY = this.y - bgMetrics.drawY;
+                        
+                        // 對應到原始圖片的座標 (source coordinates)
+                        // 我們希望顯示的區域比泡泡小 (因為要放大)，且中心對齊
+                        // 來源寬度 = 泡泡寬度 / 縮放比 / 背景繪製比例
+                        const srcW = (rx * 2) / zoom / bgMetrics.ratio;
+                        const srcH = (ry * 2) / zoom / bgMetrics.ratio;
+                        const srcX = (relX / bgMetrics.ratio) - srcW / 2;
+                        const srcY = (relY / bgMetrics.ratio) - srcH / 2;
+
+                        ctx.drawImage(backgroundImage,
+                            srcX, srcY, srcW, srcH, // 來源：較小的區域
+                            -rx, -ry, rx * 2, ry * 2 // 目標：填滿泡泡
+                        );
+                    } else {
+                        // 小泡泡：倒影 (Inverted Reflection)
+                        ctx.scale(1, -1); // 上下顛倒
+                        // 畫整個背景的一小部分，或者畫寬廣的倒影
+                        // 簡單做法：畫泡泡位置的背景，但上下顛倒，且範圍稍大(廣角)
+                        const wideFactor = 2.0;
+                        const relX = this.x - bgMetrics.drawX;
+                        const relY = this.y - bgMetrics.drawY;
+                        const srcW = (rx * 2) * wideFactor / bgMetrics.ratio;
+                        const srcH = (ry * 2) * wideFactor / bgMetrics.ratio;
+                        const srcX = (relX / bgMetrics.ratio) - srcW / 2;
+                        const srcY = (relY / bgMetrics.ratio) - srcH / 2;
+
+                        ctx.drawImage(backgroundImage,
+                            srcX, srcY, srcW, srcH,
+                            -rx, -ry, rx * 2, ry * 2
+                        );
+                    }
+                    ctx.restore();
+                    alpha *= 0.7; // 有背景時，油膜稍微透明一點
+                }
+
+                ctx.translate(this.x, this.y); ctx.rotate(rotation);
+                
+                // 1. 畫子泡泡
+                if (this.children.length > 0) {
+                    for (let child of this.children) {
+                        child.orbitAngle += child.orbitSpeed;
+                        let childX = Math.cos(child.orbitAngle) * child.orbitDist;
+                        let childY = Math.sin(child.orbitAngle) * child.orbitDist;
+                        ctx.save(); ctx.translate(childX, childY);
+                        this.drawSimpleBubble(ctx, child.radius, alpha, child.baseHue);
+                        ctx.restore();
+                    }
+                }
+                
+                // 2. 畫油膜光澤
+                const lightHue = 45; const saturation = (80 + this.satVar) * (1 - grayness * 0.5); const lightness = (60 + this.lightVar) + (grayness * 30);
+                const gx = rx * 0.2 * Math.cos(lightHue * Math.PI / 180); const gy = ry * 0.2 * Math.sin(lightHue * Math.PI / 180);
+                const gradient = ctx.createRadialGradient(gx, gy, rx * 0.1, 0, 0, rx * 1.1);
+                const step = this.spectrumStep;
+                const h1 = (this.baseHue + lightHue) % 360;
+                const h2 = (this.baseHue + lightHue + step) % 360;  
+                const h3 = (this.baseHue + lightHue + step * 2) % 360;
+                const h4 = (this.baseHue + lightHue + step * 3) % 360;
+                const h5 = (this.baseHue + lightHue + step * 4) % 360;
+                const centerAlpha = backgroundImage ? 0.1 : 0.1;
+                gradient.addColorStop(0, `hsla(${h1}, 10%, 95%, ${centerAlpha * alpha})`);
+                gradient.addColorStop(0.4, `hsla(${h2}, ${saturation}%, ${lightness}%, ${0.3 * alpha})`);
+                gradient.addColorStop(0.6, `hsla(${h3}, ${saturation}%, ${lightness}%, ${0.4 * alpha})`);
+                gradient.addColorStop(0.8, `hsla(${h4}, ${saturation}%, ${lightness}%, ${0.5 * alpha})`);
+                gradient.addColorStop(1, `hsla(${h5}, ${saturation}%, ${lightness-20}%, ${0.6 * alpha})`);
+                ctx.fillStyle = gradient; ctx.beginPath(); ctx.ellipse(0, 0, Math.abs(rx), Math.abs(ry), 0, 0, Math.PI * 2); ctx.fill();
+                ctx.lineWidth = 2;
+                const borderGradient = ctx.createLinearGradient(-rx, -ry, rx, ry);
+                borderGradient.addColorStop(0, `hsla(${h2}, ${saturation}%, 80%, ${0.6 * alpha})`);
+                borderGradient.addColorStop(1, `hsla(${h4}, ${saturation}%, 80%, ${0.6 * alpha})`);
+                ctx.strokeStyle = borderGradient; ctx.stroke();
+                ctx.beginPath();
+                const hx = -rx * 0.4 * Math.cos(lightHue * Math.PI / 180); const hy = -ry * 0.4 * Math.sin(lightHue * Math.PI / 180);
+                ctx.ellipse(hx, hy, rx * 0.15, ry * 0.1, lightHue * Math.PI / 180, 0, Math.PI * 2);
+                ctx.fillStyle = `rgba(255, 255, 255, ${0.8 * alpha})`; ctx.fill();
+                ctx.beginPath(); ctx.ellipse(hx*0.6, hy*0.6, rx * 0.05, ry * 0.05, lightHue * Math.PI / 180, 0, Math.PI * 2);
+                ctx.fillStyle = `rgba(255, 255, 255, ${0.5 * alpha})`; ctx.fill();
+                if (grayness > 0.3) {
+                    ctx.fillStyle = `rgba(200, 200, 200, ${0.4 * alpha})`;
+                    for(let i=0; i<3; i++) { ctx.beginPath(); ctx.arc(rx * 0.5 * (i-1), ry * 0.3, 2 + Math.random()*2, 0, Math.PI*2); ctx.fill(); }
+                }
+                ctx.restore();
+            }
+            drawSimpleBubble(ctx, r, alpha, hue) {
+                if(!hue) hue = Math.random()*360;
+                const grad = ctx.createRadialGradient(-r*0.3, -r*0.3, r*0.1, 0, 0, r);
+                grad.addColorStop(0, `rgba(255,255,255,0.1)`);
+                grad.addColorStop(0.5, `hsla(${hue}, 80%, 70%, ${0.3 * alpha})`);
+                grad.addColorStop(1, `hsla(${hue}, 80%, 60%, ${0.5 * alpha})`);
+                ctx.fillStyle = grad; ctx.beginPath(); ctx.arc(0, 0, r, 0, Math.PI*2); ctx.fill();
+                ctx.strokeStyle = `rgba(255,255,255,${0.6*alpha})`; ctx.lineWidth = 1; ctx.stroke();
+                ctx.fillStyle = `rgba(255,255,255,${0.8*alpha})`; ctx.beginPath(); ctx.ellipse(-r*0.4, -r*0.4, r*0.2, r*0.15, Math.PI/4, 0, Math.PI*2); ctx.fill();
+            }
+            pop() {
+                this.popping = true;
+                const particleCount = 8 + Math.floor(this.radius / 3);
+                for (let i = 0; i < particleCount; i++) { particles.push(new Particle(this.x, this.y, 'rgba(200, 230, 255, 0.8)')); }
+                if (this.children.length > 0) {
+                    for (let child of this.children) {
+                        let releasedBubble = new Bubble(this.x, this.y, child.radius, this.vx * 1.2 + (Math.random()-0.5), this.vy * 1.2 + (Math.random()-0.5));
+                        releasedBubble.baseHue = child.baseHue || Math.random()*360;
+                        bubbles.push(releasedBubble);
+                    }
+                }
+            }
+        }
+
+        class StartBubble extends Bubble {
+            constructor(x, y) { super(x, y, 80, 1, 1); this.maxLife = Infinity; this.wobbleAmp = 0.05; }
+            update() {
+                this.age++; this.x += this.vx; this.y += this.vy;
+                const padding = this.radius + 10;
+                if (this.x < padding) { this.x = padding; this.vx *= -1; this.wobbleAmp = 0.2; }
+                if (this.x > width - padding) { this.x = width - padding; this.vx *= -1; this.wobbleAmp = 0.2; }
+                if (this.y < padding) { this.y = padding; this.vy *= -1; this.wobbleAmp = 0.2; }
+                if (this.y > height - padding) { this.y = height - padding; this.vy *= -1; this.wobbleAmp = 0.2; }
+                this.vx *= 0.995; this.vy *= 0.995;
+                if(Math.abs(this.vx) < 0.5) this.vx = 0.5 * Math.sign(this.vx || 1);
+                if(Math.abs(this.vy) < 0.5) this.vy = 0.5 * Math.sign(this.vy || 1);
+                this.wobbleAmp = Math.max(0.05, this.wobbleAmp * 0.95);
+            }
+            draw(ctx) {
+                if (this.popping) return;
+                super.draw(ctx);
+                ctx.save(); ctx.translate(this.x, this.y);
+                ctx.fillStyle = "white"; ctx.font = "bold 30px 'Noto Sans TC'"; ctx.textAlign = "center"; ctx.textBaseline = "middle";
+                ctx.shadowColor = "rgba(0,0,0,0.5)"; ctx.shadowBlur = 5; ctx.fillText("START", 0, 0);
+                ctx.font = "14px 'Noto Sans TC'"; ctx.fillStyle = "rgba(255,255,255,0.8)"; ctx.fillText("戳破我 / Pop Me", 0, 25);
+                ctx.restore();
+            }
+        }
+
+        function init() {
+            resize(); window.addEventListener('resize', resize);
+            resetStartBubble(); SoundManager.init();
+
+            // 檔案上傳監聽
+            const fileInput = document.getElementById('file-input');
+            fileInput.addEventListener('change', function(e) {
+                const file = e.target.files[0];
+                if (file) {
+                    const reader = new FileReader();
+                    reader.onload = function(event) {
+                        const img = new Image();
+                        img.onload = function() {
+                            backgroundImage = img;
+                        }
+                        img.src = event.target.result;
+                    }
+                    reader.readAsDataURL(file);
+                }
+            });
+            
+            // 雙擊背景切換圖片大小 (Fit -> Zoom -> Fill -> Fit...)
+            canvas.addEventListener('dblclick', function(e) {
+                if (!backgroundImage) return;
+                // 簡單循環：1.0 -> 1.5 -> 2.0 -> 1.0
+                if (bgScale === 1.0) bgScale = 1.5;
+                else if (bgScale === 1.5) bgScale = 2.0;
+                else bgScale = 1.0;
+            });
+
+            canvas.addEventListener('mousedown', handlePointerDown);
+            window.addEventListener('mouseup', handlePointerUp);
+            canvas.addEventListener('mousemove', handlePointerMove);
+            canvas.addEventListener('touchstart', (e) => { e.preventDefault(); handlePointerDown(e.touches[0]); }, {passive: false});
+            window.addEventListener('touchend', handlePointerUp);
+            canvas.addEventListener('touchmove', (e) => { e.preventDefault(); handlePointerMove(e.touches[0]); }, {passive: false});
+
+            window.addEventListener('keydown', (e) => {
+                if (e.code === 'Space' && !pointer.isDown) {
+                    pointer.isDown = true; pointer.downStart = Date.now();
+                    if (pointer.x === 0 && pointer.y === 0) { pointer.x = width / 2; pointer.y = height / 2; }
+                    if (currentTool === TOOLS.WAND) { 
+                        pointer.startX = pointer.x; pointer.startY = pointer.y; 
+                        wandState.active = true;
+                    }
+                    if (currentTool === TOOLS.RANDOM) {
+                        randomSpawnPoint.x = Math.random() * width;
+                        randomSpawnPoint.y = Math.random() * height;
+                    }
+                }
+            });
+            window.addEventListener('keyup', (e) => { if (e.code === 'Space') handlePointerUp(); });
+
+            setupUI();
+            setupWindSystem();
+            
+            makeDraggable(document.getElementById('panel-gen'), document.querySelector('#panel-gen'));
+            makeDraggable(document.getElementById('panel-env'), document.querySelector('#panel-env'));
+            makeDraggable(document.getElementById('panel-bubble-vars'), document.querySelector('#panel-bubble-vars'));
+
+            selectSubTool(TOOLS.GUN);
+            requestAnimationFrame(loop);
+        }
+
+        window.togglePopPanel = function(panelId) {
+            const panel = document.getElementById(panelId);
+            const isShowing = panel.classList.contains('show');
+            if(panelId !== 'panel-gen') {
+                if (isShowing) panel.classList.remove('show');
+                else panel.classList.add('show');
+            } else {
+                if (isShowing) panel.classList.remove('show');
+                else panel.classList.add('show');
+            }
+            updateSidebarActiveState();
+        };
+
+        window.closePopPanel = function(panelId) {
+            document.getElementById(panelId).classList.remove('show');
+            updateSidebarActiveState();
+        };
+
+        function updateSidebarActiveState() {
+            document.querySelectorAll('.sidebar-btn').forEach(btn => btn.classList.remove('active'));
+            if (currentTool === TOOLS.GUN || currentTool === TOOLS.WAND || currentTool === TOOLS.RANDOM) {
+                document.getElementById('btn-main-gen').classList.add('active');
+            } else if (currentTool === TOOLS.NEEDLE) {
+                document.getElementById('btn-main-needle').classList.add('active');
+            }
+            if (document.getElementById('panel-env').classList.contains('show')) {
+                document.getElementById('btn-main-env').classList.add('active');
+            }
+            if (document.getElementById('panel-bubble-vars').classList.contains('show')) {
+                document.getElementById('btn-main-bubble-vars').classList.add('active');
+            }
+        }
+
+        window.selectMainTool = function(toolId) {
+            currentTool = toolId;
+            document.querySelectorAll('.pop-panel').forEach(p => p.classList.remove('show'));
+            updateSidebarActiveState();
+        };
+
+        window.toggleNeedleSuper = function() {
+            if (currentTool !== TOOLS.NEEDLE) {
+                selectMainTool(TOOLS.NEEDLE);
+            }
+            isNeedleSuper = !isNeedleSuper;
+            const needleBtn = document.getElementById('btn-main-needle');
+            if (isNeedleSuper) {
+                needleBtn.classList.add('super-mode');
+            } else {
+                needleBtn.classList.remove('super-mode');
+            }
+        };
+
+        window.selectSubTool = function(toolId) {
+            currentTool = toolId;
+            lastGenTool = toolId;
+            document.querySelectorAll('.sub-tool-btn').forEach(btn => btn.classList.remove('active'));
+            if (toolId === TOOLS.GUN) document.getElementById('btn-sub-gun').classList.add('active');
+            if (toolId === TOOLS.WAND) document.getElementById('btn-sub-wand').classList.add('active');
+            if (toolId === TOOLS.RANDOM) document.getElementById('btn-sub-random').classList.add('active');
+            updateSidebarActiveState();
+        };
+
+        window.togglePause = function() {
+            if (currentState === STATE.PLAYING) {
+                currentState = STATE.PAUSED;
+                showOverlayIcon('pause');
+                document.getElementById('icon-pause-state').style.display = 'none';
+                document.getElementById('icon-play-state').style.display = 'block';
+            } else if (currentState === STATE.PAUSED) {
+                currentState = STATE.PLAYING;
+                showOverlayIcon('play');
+                document.getElementById('icon-pause-state').style.display = 'block';
+                document.getElementById('icon-play-state').style.display = 'none';
+                requestAnimationFrame(loop);
+            }
+        };
+
+        function showOverlayIcon(type) {
+            const overlay = document.getElementById('pause-overlay');
+            const pIcon = document.getElementById('pause-icon');
+            const plIcon = document.getElementById('play-icon');
+            overlay.classList.remove('animate-flash');
+            void overlay.offsetWidth;
+            if (type === 'pause') { pIcon.style.display = 'block'; plIcon.style.display = 'none'; } 
+            else { pIcon.style.display = 'none'; plIcon.style.display = 'block'; }
+            overlay.classList.add('animate-flash');
+        }
+
+        window.toggleRandom = function(type) {
+            randomState[type] = !randomState[type];
+            const btn = document.getElementById(`btn-rand-${type}`);
+            if(randomState[type]) { btn.classList.add('active'); randomTimers[type] = 0; } else { btn.classList.remove('active'); }
+        };
+
+        function lerp(start, end, amt) { return (1 - amt) * start + amt * end; }
+
+        function updateEnvironmentValues() {
+            const now = Date.now();
+            if (randomState.dir && now > randomTimers.dir) { targetEnv.windDirectionAngle = Math.floor(Math.random() * 360); randomTimers.dir = now + 2000 + Math.random() * 3000; }
+            if (randomState.speed && now > randomTimers.speed) { targetEnv.windSpeedLevel = Math.floor(Math.random() * 18); randomTimers.speed = now + 1500 + Math.random() * 2500; }
+            if (randomState.life && now > randomTimers.life) { targetEnv.bubbleLifeLevel = Math.floor(Math.random() * 3); randomTimers.life = now + 3000 + Math.random() * 4000; }
+            if (randomState.size && now > randomTimers.size) { 
+                targetEnv.bubbleSizeLevel = 50 + Math.floor(Math.random() * 200); 
+                randomTimers.size = now + 500 + Math.random() * 1000; 
+            }
+            if (randomState.rate && now > randomTimers.rate) { targetEnv.genRateLevel = Math.floor(Math.random() * 100); randomTimers.rate = now + 3000 + Math.random() * 4000; }
+            
+            if (randomState.size) {
+                 randomSizeTime += 0.05;
+                 targetEnv.bubbleSizeLevel = 100 + Math.sin(randomSizeTime) * 80 + (Math.random()-0.5)*20;
+            }
+
+            env.windSpeedLevel = lerp(env.windSpeedLevel, targetEnv.windSpeedLevel, 0.05);
+            document.getElementById('val-wind').innerText = Math.round(env.windSpeedLevel);
+            if (randomState.speed) document.getElementById('range-wind').value = env.windSpeedLevel;
+
+            env.bubbleLifeLevel = lerp(env.bubbleLifeLevel, targetEnv.bubbleLifeLevel, 0.05);
+            let level = Math.round(env.bubbleLifeLevel);
+            let txt = "低"; if(level === 1) txt = "中"; if(level === 2) txt = "高";
+            document.getElementById('val-life').innerText = txt;
+            if (randomState.life) document.getElementById('range-life').value = env.bubbleLifeLevel;
+            
+            env.bubbleSizeLevel = lerp(env.bubbleSizeLevel, targetEnv.bubbleSizeLevel, 0.05);
+            let sizeScale = env.bubbleSizeLevel / 100;
+            document.getElementById('val-size').innerText = sizeScale.toFixed(1) + "x";
+            if(randomState.size) document.getElementById('range-size').value = env.bubbleSizeLevel;
+            
+            env.genRateLevel = lerp(env.genRateLevel, targetEnv.genRateLevel, 0.05);
+            let rateTxt = "正常";
+            if(env.genRateLevel < 30) rateTxt = "慢"; else if(env.genRateLevel > 70) rateTxt = "快";
+            document.getElementById('val-rate').innerText = rateTxt;
+            if(randomState.rate) document.getElementById('range-rate').value = env.genRateLevel;
+
+            let diff = targetEnv.windDirectionAngle - env.windDirectionAngle;
+            while (diff < -180) diff += 360; while (diff > 180) diff -= 360;
+            env.windDirectionAngle += diff * 0.05;
+            
+            let displayAngle = Math.round(env.windDirectionAngle % 360);
+            if (displayAngle < 0) displayAngle += 360;
+            document.getElementById('val-degree').innerText = displayAngle + "°";
+            updateCompassVisual();
+        }
+
+        function setupUI() {
+            document.getElementById('range-wind').addEventListener('input', (e) => { targetEnv.windSpeedLevel = parseInt(e.target.value); env.windSpeedLevel = targetEnv.windSpeedLevel; document.getElementById('val-wind').innerText = targetEnv.windSpeedLevel; if (randomState.speed) toggleRandom('speed'); });
+            document.getElementById('range-life').addEventListener('input', (e) => { targetEnv.bubbleLifeLevel = parseInt(e.target.value); env.bubbleLifeLevel = targetEnv.bubbleLifeLevel; if (randomState.life) toggleRandom('life'); });
+            document.getElementById('range-size').addEventListener('input', (e) => { targetEnv.bubbleSizeLevel = parseInt(e.target.value); env.bubbleSizeLevel = targetEnv.bubbleSizeLevel; if (randomState.size) toggleRandom('size'); });
+            document.getElementById('range-rate').addEventListener('input', (e) => { targetEnv.genRateLevel = parseInt(e.target.value); env.genRateLevel = targetEnv.genRateLevel; if (randomState.rate) toggleRandom('rate'); });
+        }
+
+        function setupWindSystem() {
+            const compass = document.getElementById('windCompass');
+            function handleCompassInput(e) {
+                e.stopPropagation();
+                if (randomState.dir) toggleRandom('dir');
+                const rect = compass.getBoundingClientRect();
+                const cx = rect.left + rect.width / 2; const cy = rect.top + rect.height / 2;
+                const clientX = e.touches ? e.touches[0].clientX : e.clientX; const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+                const dx = clientX - cx; const dy = clientY - cy;
+                let angle = Math.atan2(dy, dx) * 180 / Math.PI + 90;
+                targetEnv.windDirectionAngle = angle; env.windDirectionAngle = angle;
+            }
+            function startManualControl(e) {
+                compass.classList.add('active'); handleCompassInput(e); 
+                document.addEventListener('mousemove', handleCompassInput); document.addEventListener('touchmove', handleCompassInput, {passive: false});
+                document.addEventListener('mouseup', stopManualControl); document.addEventListener('touchend', stopManualControl);
+            }
+            function stopManualControl() {
+                compass.classList.remove('active');
+                document.removeEventListener('mousemove', handleCompassInput); document.removeEventListener('touchmove', handleCompassInput);
+                document.removeEventListener('mouseup', stopManualControl); document.removeEventListener('touchend', stopManualControl);
+            }
+            compass.addEventListener('mousedown', startManualControl);
+            compass.addEventListener('touchstart', (e) => { e.preventDefault(); startManualControl(e); }, {passive: false});
+        }
+
+        function updateCompassVisual() {
+            const arrow = document.getElementById('compassArrow');
+            arrow.style.transform = `rotate(${env.windDirectionAngle}deg)`;
+        }
+
+        function makeDraggable(element, handle) {
+            let pos1 = 0, pos2 = 0, pos3 = 0, pos4 = 0;
+            const dragTarget = handle || element;
+            dragTarget.onmousedown = dragStart; dragTarget.ontouchstart = dragStart;
+            function dragStart(e) {
+                if ((e.target.tagName === 'BUTTON' || e.target.tagName === 'INPUT' || e.target.closest('button')) && e.target !== handle) return;
+                const clientX = e.type === 'touchstart' ? e.touches[0].clientX : e.clientX;
+                const clientY = e.type === 'touchstart' ? e.touches[0].clientY : e.clientY;
+                pos3 = clientX; pos4 = clientY;
+                const rect = element.getBoundingClientRect();
+                element.classList.add('is-dragging');
+                element.style.top = rect.top + "px"; element.style.left = rect.left + "px"; element.style.right = "auto"; element.style.bottom = "auto"; element.style.transform = "none";
+                document.onmouseup = closeDragElement; document.onmousemove = elementDrag;
+                document.ontouchend = closeDragElement; document.ontouchmove = elementDrag;
+            }
+            function elementDrag(e) {
+                e.preventDefault();
+                const clientX = e.type === 'touchmove' ? e.touches[0].clientX : e.clientX;
+                const clientY = e.type === 'touchmove' ? e.touches[0].clientY : e.clientY;
+                pos1 = pos3 - clientX; pos2 = pos4 - clientY; pos3 = clientX; pos4 = clientY;
+                element.style.top = (element.offsetTop - pos2) + "px"; element.style.left = (element.offsetLeft - pos1) + "px";
+            }
+            function closeDragElement() {
+                document.onmouseup = null; document.onmousemove = null;
+                document.ontouchend = null; document.ontouchmove = null;
+                element.classList.remove('is-dragging');
+            }
+        }
+
+        function resize() {
+            width = canvas.width = window.innerWidth;
+            height = canvas.height = window.innerHeight;
+            if (currentState === STATE.START_SCREEN && startBubble) { startBubble.x = width / 2; startBubble.y = height / 2; }
+        }
+
+        function resetStartBubble() { startBubble = new StartBubble(width / 2, height / 2); }
+
+        function handlePointerDown(e) {
+            if (e.target !== canvas) return;
+            pointer.x = e.clientX; pointer.y = e.clientY;
+            pointer.isDown = true; pointer.downStart = Date.now();
+            pointer.vx = 0; pointer.vy = 0; lastPointer.x = pointer.x; lastPointer.y = pointer.y;
+
+            if (currentState === STATE.START_SCREEN) {
+                const dx = pointer.x - startBubble.x; const dy = pointer.y - startBubble.y;
+                if (Math.sqrt(dx*dx + dy*dy) < startBubble.radius) {
+                    startBubble.pop(); setTimeout(startGame, 200); SoundManager.playPop();
+                }
+            } else {
+                if (currentState === STATE.PAUSED) {
+                    if (currentTool === TOOLS.NEEDLE) {
+                        checkNeedlePop(pointer.x, pointer.y);
+                    }
+                    return;
+                }
+
+                if (currentTool === TOOLS.WAND) {
+                    pointer.startX = pointer.x; pointer.startY = pointer.y;
+                    wandState.active = true;
+                    wandState.startX = pointer.x; wandState.startY = pointer.y;
+                    wandState.recoiling = false; wandState.recoilProgress = 0;
+                } else if (currentTool === TOOLS.NEEDLE) {
+                    checkNeedlePop(pointer.x, pointer.y);
+                } else if (currentTool === TOOLS.RANDOM) {
+                    randomSpawnPoint.x = Math.random() * width;
+                    randomSpawnPoint.y = Math.random() * height;
+                }
+            }
+        }
+
+        function handlePointerMove(e) {
+            const newX = e.clientX; const newY = e.clientY;
+            pointer.vx = newX - lastPointer.x; pointer.vy = newY - lastPointer.y;
+            lastPointer.x = newX; lastPointer.y = newY; pointer.x = newX; pointer.y = newY;
+            
+            if (currentTool === TOOLS.NEEDLE) {
+                if (isNeedleSuper || pointer.isDown) checkNeedlePop(pointer.x, pointer.y);
+            }
+        }
+
+        function handlePointerUp() {
+            if (!pointer.isDown) return;
+            pointer.isDown = false;
+            
+            if (currentState === STATE.PLAYING) {
+                const duration = Date.now() - pointer.downStart;
+                if (currentTool === TOOLS.WAND) {
+                    if (wandState.active) {
+                        wandState.active = false;
+                        wandState.recoiling = true;
+                        wandState.endX = pointer.x; wandState.endY = pointer.y;
+                    }
+                }
+                else if (currentTool === TOOLS.RANDOM) createChargedBubble(duration);
+            }
+        }
+
+        function startGame() {
+            currentState = STATE.PLAYING;
+            document.body.classList.add('game-active');
+            document.getElementById('panel-gen').classList.add('show');
+            updateSidebarActiveState();
+        }
+
+        function checkNeedlePop(x, y) {
+            for (let i = bubbles.length - 1; i >= 0; i--) {
+                const b = bubbles[i];
+                if (b.popping) continue;
+                const dx = x - b.x; const dy = y - b.y;
+                if (Math.sqrt(dx*dx + dy*dy) < b.radius * 1.2) { b.pop(); SoundManager.playPop(); }
+            }
+        }
+
+        function createAndSpawnBubble(x, y, radius, vx, vy) {
+            let baseRadius = radius * (env.bubbleSizeLevel / 100);
+            let b = new Bubble(x, y, baseRadius, vx, vy);
+            for (let i = bubbles.length - 1; i >= 0; i--) {
+                let other = bubbles[i];
+                if (other.popping) continue;
+                if (other.radius < baseRadius * 0.7) {
+                    let dx = b.x - other.x; let dy = b.y - other.y;
+                    let dist = Math.sqrt(dx*dx + dy*dy);
+                    if (dist + other.radius < baseRadius) {
+                        b.captureChild(other); bubbles.splice(i, 1);
+                    }
+                }
+            }
+            bubbles.push(b);
+        }
+
+        function createChargedBubble(duration) {
+            let r = 15;
+            if (duration > 100) { r = 15 + (duration - 100) * 0.05; }
+            let vx = (Math.random() - 0.5) * 5;
+            let vy = (Math.random() - 0.5) * 5;
+            createAndSpawnBubble(randomSpawnPoint.x, randomSpawnPoint.y, r, vx, vy);
+        }
+
+        let lastGunFireTime = 0;
+
+        function updateTools() {
+            if (currentState === STATE.PAUSED) return;
+
+            if (currentTool === TOOLS.GUN && pointer.isDown) {
+                const interval = 300 - (env.genRateLevel / 100) * 270;
+                
+                if (Date.now() - lastGunFireTime > interval) { 
+                    const r = 12; 
+                    const vx = (Math.random() - 0.5) * 2;
+                    const vy = (Math.random() - 0.5) * 2 - 3; 
+                    createAndSpawnBubble(pointer.x, pointer.y, r, vx, vy);
+                    lastGunFireTime = Date.now();
+                }
+            } 
+        }
+
+        function createWandBubble() {
+            const centerX = (pointer.startX + pointer.x) / 2;
+            const centerY = (pointer.startY + pointer.y) / 2;
+            const dx = pointer.x - pointer.startX; const dy = pointer.y - pointer.startY;
+            const dist = Math.sqrt(dx*dx + dy*dy);
+            let radius = Math.max(20, Math.min(dist * 0.4, 150));
+            let b = new Bubble(centerX, centerY, radius, 0, 0);
+            b.wobbleAmp = 0.4; 
+            for (let i = bubbles.length - 1; i >= 0; i--) {
+                let other = bubbles[i];
+                if (other.popping) continue;
+                if (other.radius < radius * 0.7) {
+                    let d = Math.sqrt((b.x - other.x)**2 + (b.y - other.y)**2);
+                    if (d + other.radius < radius) {
+                        b.captureChild(other); bubbles.splice(i, 1);
+                    }
+                }
+            }
+            bubbles.push(b);
+        }
+
+        function drawWandVisuals() {
+            if (wandState.recoiling) {
+                wandState.recoilProgress += 0.1;
+                if (wandState.recoilProgress >= 1) {
+                    wandState.recoiling = false;
+                    const cx = (wandState.startX + wandState.endX) / 2;
+                    const cy = (wandState.startY + wandState.endY) / 2;
+                    const dx = wandState.endX - wandState.startX;
+                    const dy = wandState.endY - wandState.startY;
+                    const dist = Math.sqrt(dx*dx + dy*dy);
+                    let radius = Math.max(20, Math.min(dist * 0.4, 150));
+                    createAndSpawnBubble(cx, cy, radius, 0, 0);
+                } else {
+                    drawFilm(wandState.startX, wandState.startY, wandState.endX, wandState.endY, 1 - wandState.recoilProgress);
+                }
+                return;
+            }
+
+            if (currentState === STATE.PLAYING && currentTool === TOOLS.WAND && pointer.isDown) {
+                let x1 = wandState.startX; 
+                let y1 = wandState.startY;
+                let x2 = pointer.x; 
+                let y2 = pointer.y;
+                wandState.endX = x2; wandState.endY = y2;
+                drawFilm(x1, y1, x2, y2, 1);
+            }
+        }
+        
+        function drawFilm(x1, y1, x2, y2, scale) {
+            if (scale < 1) {
+                const cx = (x1 + x2) / 2;
+                const cy = (y1 + y2) / 2;
+                x1 = cx + (x1 - cx) * scale;
+                y1 = cy + (y1 - cy) * scale;
+                x2 = cx + (x2 - cx) * scale;
+                y2 = cy + (y2 - cy) * scale;
+            }
+            const dx = x2 - x1; const dy = y2 - y1;
+            const len = Math.sqrt(dx*dx + dy*dy);
+            const angle = Math.atan2(dy, dx);
+            if (len < 5) return;
+
+            ctx.save();
+            const grad = ctx.createLinearGradient(x1, y1, x2, y2);
+            grad.addColorStop(0, "rgba(255, 255, 255, 0.1)");
+            grad.addColorStop(0.5, "hsla(" + (frameCount * 2 % 360) + ", 70%, 60%, 0.4)");
+            grad.addColorStop(1, "rgba(255, 255, 255, 0.1)");
+            ctx.fillStyle = grad; 
+            ctx.strokeStyle = "rgba(255, 255, 255, 0.5)"; ctx.lineWidth = 2;
+            const time = frameCount * 0.2;
+            const nx = -Math.sin(angle); const ny = Math.cos(angle);
+            const baseWidth = Math.min(len * 0.3, 60);
+            ctx.beginPath();
+            ctx.moveTo(x1 + nx * baseWidth * 0.5, y1 + ny * baseWidth * 0.5);
+            for(let i=0; i<=10; i++) {
+                const t = i / 10;
+                const px = x1 + dx * t; const py = y1 + dy * t;
+                const noise = Math.sin(t * Math.PI * 2 + time) * 5 + Math.sin(t * 10 + time * 2) * 3;
+                const wx = px + nx * (baseWidth * 0.5 + noise);
+                const wy = py + ny * (baseWidth * 0.5 + noise);
+                ctx.lineTo(wx, wy);
+            }
+            ctx.lineTo(x2 + nx * baseWidth * 0.5, y2 + ny * baseWidth * 0.5);
+            ctx.arc(x2, y2, baseWidth * 0.5, angle + Math.PI/2, angle - Math.PI/2, true);
+            for(let i=10; i>=0; i--) {
+                const t = i / 10;
+                const px = x1 + dx * t; const py = y1 + dy * t;
+                const noise = Math.sin(t * Math.PI * 2 + time + Math.PI) * 5 + Math.sin(t * 10 + time * 2) * 3;
+                const wx = px - nx * (baseWidth * 0.5 + noise);
+                const wy = py - ny * (baseWidth * 0.5 + noise);
+                ctx.lineTo(wx, wy);
+            }
+            ctx.arc(x1, y1, baseWidth * 0.5, angle - Math.PI/2, angle + Math.PI/2, true);
+            ctx.fill(); ctx.stroke();
+            ctx.fillStyle = "#fff";
+            ctx.beginPath(); ctx.arc(x1, y1, 4, 0, Math.PI*2); ctx.fill();
+            ctx.beginPath(); ctx.arc(x2, y2, 4, 0, Math.PI*2); ctx.fill();
+            ctx.restore();
+        }
+        
+        function drawChargeFeedback() {
+            if (currentState === STATE.PLAYING && currentTool === TOOLS.RANDOM && pointer.isDown) {
+                const duration = Date.now() - pointer.downStart;
+                let r = 15;
+                if (duration > 100) r = 15 + (duration - 100) * 0.05;
+                
+                // 應用大小變因 scale
+                r *= (env.bubbleSizeLevel / 100);
+                
+                ctx.save(); ctx.translate(randomSpawnPoint.x, randomSpawnPoint.y); 
+                ctx.beginPath(); ctx.arc(0, 0, r, 0, Math.PI * 2);
+                ctx.strokeStyle = "rgba(255, 255, 255, 0.5)"; ctx.lineWidth = 2; ctx.setLineDash([5, 5]); ctx.stroke();
+                ctx.fillStyle = "rgba(255, 255, 255, 0.2)"; ctx.fill(); ctx.restore();
+            }
+        }
+        
+        function loop() {
+            frameCount++;
+            
+            // 清除畫面 (即使暫停也要清除並重繪，才能看到變化如泡泡消失)
+            // 先畫背景圖 (如果有)
+            if (backgroundImage) {
+                // 繪製背景並維持比例 (cover)
+                // bgScale 實作
+                const ratio = Math.max(width / backgroundImage.width, height / backgroundImage.height);
+                // 應用縮放倍率
+                const finalRatio = ratio * bgScale;
+                
+                const centerShift_x = (width - backgroundImage.width * finalRatio) / 2;
+                const centerShift_y = (height - backgroundImage.height * finalRatio) / 2;
+                
+                // 儲存參數供泡泡折射使用
+                bgMetrics = { drawX: centerShift_x, drawY: centerShift_y, ratio: finalRatio };
+
+                ctx.clearRect(0, 0, width, height); 
+                ctx.drawImage(backgroundImage, 0, 0, backgroundImage.width, backgroundImage.height, centerShift_x, centerShift_y, backgroundImage.width * finalRatio, backgroundImage.height * finalRatio);
+            } else {
+                ctx.clearRect(0, 0, width, height);
+            }
+
+            if (currentState !== STATE.PAUSED) {
+                updateEnvironmentValues(); 
+            }
+
+            if (currentState === STATE.START_SCREEN) {
+                if (startBubble) { startBubble.update(); startBubble.draw(ctx); }
+            } else {
+                if (currentState !== STATE.PAUSED) {
+                    updateTools();
+                }
+                drawWandVisuals(); 
+                drawChargeFeedback(); 
+            }
+
+            for (let i = bubbles.length - 1; i >= 0; i--) {
+                if (currentState !== STATE.PAUSED) {
+                    bubbles[i].update(); 
+                }
+                bubbles[i].draw(ctx);
+                if (bubbles[i].popping) bubbles.splice(i, 1);
+            }
+
+            for (let i = particles.length - 1; i >= 0; i--) {
+                if (currentState !== STATE.PAUSED) {
+                    particles[i].update(); 
+                }
+                particles[i].draw(ctx);
+                if (particles[i].life <= 0) particles.splice(i, 1);
+            }
+
+            requestAnimationFrame(loop);
+        }
+
+        // init() 直接呼叫
+        init();
+    </script>
+</body>
+</html>
