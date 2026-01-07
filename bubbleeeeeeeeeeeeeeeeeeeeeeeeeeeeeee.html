@@ -3,67 +3,470 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>夢幻泡泡實驗室 - 音樂版</title>
+    <title>夢幻泡泡實驗室</title>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;700;900&display=swap');
 
         body, html {
-            margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden;
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
             background: linear-gradient(135deg, #1a1a2e, #16213e);
             font-family: 'Noto Sans TC', sans-serif;
-            user-select: none; -webkit-user-select: none;
+            user-select: none;
+            -webkit-user-select: none;
         }
 
-        #canvas-container { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 1; cursor: crosshair; }
-        #ui-layer { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 10; pointer-events: none; }
+        #canvas-container {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 1;
+            cursor: crosshair;
+        }
 
-        /* 超大開場文字 */
+        #ui-layer {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 10;
+            pointer-events: none;
+        }
+
+        /* 開頭動畫文字 - 超大置中 */
         #intro-text {
-            position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
-            font-size: 8vw; font-weight: 900; color: rgba(255, 255, 255, 0.1);
-            text-transform: uppercase; letter-spacing: 5px; pointer-events: none;
-            transition: opacity 1s, transform 1s; z-index: 5;
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 8vw; /* 超大 */
+            font-weight: 900;
+            color: rgba(255, 255, 255, 0.1);
+            text-transform: uppercase;
+            letter-spacing: 5px;
+            pointer-events: none;
+            white-space: nowrap;
+            transition: opacity 1s, transform 1s;
+            z-index: 5; /* 在 Start 泡泡後面 */
             text-shadow: 0 0 30px rgba(255,255,255,0.2);
         }
-        #intro-text.fade-out { opacity: 0; transform: translate(-50%, -50%) scale(1.5); }
+        
+        #intro-text.fade-out {
+            opacity: 0;
+            transform: translate(-50%, -50%) scale(1.5);
+        }
 
-        /* 側邊工具欄 */
+        /* --- 側邊工具欄 (Sidebar) --- */
         .sidebar {
-            position: absolute; right: 20px; top: 50%; transform: translateY(-50%);
-            display: flex; flex-direction: column; gap: 15px; pointer-events: auto; z-index: 100;
+            position: absolute;
+            right: 20px;
+            top: 50%;
+            transform: translateY(-50%);
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            pointer-events: auto;
+            z-index: 100;
         }
 
         .sidebar-btn-container { position: relative; }
+
         .sidebar-btn {
-            background: rgba(255, 255, 255, 0.15); backdrop-filter: blur(5px);
-            border: 1px solid rgba(255, 255, 255, 0.3); border-radius: 12px;
-            width: 50px; height: 50px; display: flex; justify-content: center; align-items: center;
-            cursor: pointer; transition: all 0.2s; color: white;
+            background: rgba(255, 255, 255, 0.15);
+            backdrop-filter: blur(5px);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            border-radius: 12px;
+            width: 50px;
+            height: 50px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            cursor: pointer;
+            transition: all 0.2s;
+            color: white;
             box-shadow: 0 4px 6px rgba(0,0,0,0.2);
+            position: relative;
+            overflow: hidden;
         }
-        .sidebar-btn:hover { background: rgba(255, 255, 255, 0.25); transform: scale(1.1); }
-        .sidebar-btn.active { background: rgba(100, 200, 255, 0.4); border-color: rgba(100, 200, 255, 0.8); }
 
-        /* 彈出面板 */
-        .pop-panel {
-            position: absolute; background: rgba(0, 0, 0, 0.7); backdrop-filter: blur(10px);
-            border: 1px solid rgba(255, 255, 255, 0.2); border-radius: 15px;
-            padding: 10px; pointer-events: auto; display: none; 
-            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37); z-index: 150;
+        .sidebar-btn:hover {
+            background: rgba(255, 255, 255, 0.25);
+            transform: scale(1.1);
         }
-        .pop-panel.show { display: flex; }
-        #panel-gen { right: 85px; top: 100px; }
+
+        .sidebar-btn.active {
+            background: rgba(100, 200, 255, 0.4);
+            border-color: rgba(100, 200, 255, 0.8);
+            box-shadow: 0 0 10px rgba(100, 200, 255, 0.4);
+        }
         
-        .sub-tool-btn {
-            background: rgba(255, 255, 255, 0.1); border: 1px solid rgba(255, 255, 255, 0.2);
-            color: white; border-radius: 8px; cursor: pointer; width: 45px; height: 45px;
-            display: flex; justify-content: center; align-items: center; margin: 0 5px;
+        /* 自動生成模式的特效 */
+        .sidebar-btn.auto-mode {
+            animation: pulse-color 2s infinite alternate;
         }
-        .sub-tool-btn.active { background: rgba(100, 200, 255, 0.4); border-color: #64c8ff; }
+        @keyframes pulse-color {
+            from { border-color: #aaddff; box-shadow: 0 0 10px #aaddff; }
+            to { border-color: #ffaaee; box-shadow: 0 0 20px #ffaaee; }
+        }
 
-        /* 底部控制台樣式略... (保持原樣以節省空間) */
-        .vars-container { display: flex; gap: 20px; color: white; padding: 10px; }
-        input[type=range] { width: 100px; }
+        /* 針的超級模式樣式 */
+        .sidebar-btn.super-mode {
+            background: rgba(255, 50, 50, 0.4);
+            border-color: rgba(255, 100, 100, 0.8);
+            box-shadow: 0 0 15px rgba(255, 50, 50, 0.6);
+            animation: shake 0.5s infinite;
+        }
+
+        @keyframes shake {
+            0% { transform: translate(1px, 1px) rotate(0deg); }
+            50% { transform: translate(-1px, 2px) rotate(-1deg); }
+            100% { transform: translate(1px, -2px) rotate(-1deg); }
+        }
+
+        .sidebar-btn svg {
+            width: 28px;
+            height: 28px;
+            fill: none;
+            stroke: currentColor;
+            stroke-width: 2;
+            stroke-linecap: round;
+            stroke-linejoin: round;
+        }
+        
+        #file-input { display: none; }
+
+        /* --- 懸浮說明 (Tooltip) --- */
+        .tooltip {
+            position: absolute;
+            right: 65px; 
+            top: 50%;
+            transform: translateY(-50%) translateX(10px);
+            background: rgba(255, 255, 255, 0.85); 
+            color: #333;
+            padding: 10px 15px;
+            border-radius: 8px;
+            width: max-content;
+            max-width: 200px;
+            pointer-events: none;
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.3s cubic-bezier(0.18, 0.89, 0.32, 1.28);
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+            text-align: left;
+            z-index: 1000;
+        }
+
+        .tooltip::after {
+            content: '';
+            position: absolute;
+            top: 50%;
+            right: -6px;
+            margin-top: -6px;
+            border-width: 6px;
+            border-style: solid;
+            border-color: transparent transparent transparent rgba(255, 255, 255, 0.85);
+        }
+
+        .sidebar-btn-container:hover .tooltip {
+            opacity: 1;
+            visibility: visible;
+            transform: translateY(-50%) translateX(0);
+        }
+
+        .tooltip-title {
+            font-size: 1.1rem;
+            font-weight: 900;
+            color: #1a1a2e;
+            margin-bottom: 4px;
+            display: block;
+        }
+
+        .tooltip-content {
+            font-size: 0.85rem;
+            line-height: 1.4;
+            color: #444;
+        }
+
+        .bold-big {
+            font-weight: 900;
+            font-size: 1.1em;
+            color: #000;
+        }
+
+        /* --- 彈出面板 (通用) --- */
+        .pop-panel {
+            position: absolute;
+            background: rgba(0, 0, 0, 0.7);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 15px;
+            padding: 10px;
+            pointer-events: auto;
+            display: none; 
+            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+            animation: popIn 0.3s cubic-bezier(0.18, 0.89, 0.32, 1.28);
+            z-index: 150;
+        }
+
+        @keyframes popIn {
+            from { opacity: 0; transform: scale(0.9); }
+            to { opacity: 1; transform: scale(1); }
+        }
+
+        .pop-panel.show { display: flex; }
+
+        /* 生成面板 */
+        #panel-gen {
+            right: 85px;
+            top: 100px;
+            width: auto;
+            flex-direction: row; 
+            align-items: center;
+            padding: 5px;
+            border-radius: 12px;
+        }
+
+        /* 環境變因面板 */
+        #panel-env {
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: auto;
+            min-width: 450px;
+            max-width: 95vw; 
+            flex-direction: row;
+            align-items: center;
+            justify-content: space-around;
+            padding: 15px 25px;
+            border-radius: 20px;
+        }
+
+        /* 泡泡變因面板 */
+        #panel-bubble-vars {
+            bottom: 120px; 
+            left: 50%;
+            transform: translateX(-50%);
+            width: auto;
+            min-width: 550px;
+            max-width: 95vw; 
+            flex-direction: row;
+            align-items: center;
+            justify-content: space-around;
+            padding: 15px 25px;
+            border-radius: 20px;
+        }
+
+        .panel-header { display: none; }
+        .close-btn { display: none; }
+
+        .tool-grid { display: flex; gap: 5px; }
+
+        .sub-tool-btn {
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            color: white;
+            border-radius: 8px;
+            cursor: pointer;
+            width: 45px;
+            height: 45px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            transition: all 0.2s;
+        }
+        .sub-tool-btn:hover { background: rgba(255,255,255,0.2); }
+        .sub-tool-btn.active { 
+            background: rgba(100, 200, 255, 0.4); 
+            border-color: rgba(100, 200, 255, 0.8);
+            box-shadow: 0 0 8px rgba(100, 200, 255, 0.4);
+        }
+        .sub-tool-btn svg { width: 24px; height: 24px; fill: none; stroke: currentColor; stroke-width: 2; }
+
+        /* 變因面板內部佈局 */
+        .vars-container {
+            display: flex;
+            flex-direction: row;
+            align-items: flex-start;
+            width: 100%;
+            gap: 25px;
+        }
+
+        .section-wind-dir {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 5px;
+            min-width: 80px;
+            justify-content: center;
+            height: 100%;
+        }
+
+        .section-sliders {
+            display: flex;
+            flex-direction: row;
+            gap: 25px;
+            flex: 1;
+            width: 100%;
+        }
+
+        .control-item {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+            flex: 1;
+        }
+
+        .label-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            width: 100%;
+        }
+
+        .panel-label {
+            font-size: 0.85rem;
+            color: #aaddff;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            white-space: nowrap;
+        }
+        
+        .panel-sub-text {
+            font-size: 0.7rem;
+            color: rgba(255,255,255,0.5);
+            margin-left: 2px;
+        }
+
+        .value-box {
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            background: rgba(100, 200, 255, 0.15);
+            border-radius: 4px;
+            padding: 1px 6px;
+            font-size: 0.8rem;
+            color: #fff;
+            min-width: 30px;
+            text-align: center;
+        }
+
+        .random-btn {
+            background: rgba(255,255,255,0.1);
+            border: 1px solid rgba(255,255,255,0.4);
+            border-radius: 50%; 
+            width: 18px;
+            height: 18px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 0.65rem;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.2s;
+            padding: 0;
+            margin-left: 5px;
+        }
+        .random-btn.active {
+            background: #aaddff;
+            color: #1a1a2e;
+            border-color: #aaddff;
+            box-shadow: 0 0 5px rgba(170, 221, 255, 0.5);
+        }
+
+        .compass {
+            width: 60px;
+            height: 60px;
+            position: relative;
+            background: rgba(255,255,255,0.05);
+            border-radius: 50%;
+            border: 2px solid rgba(255,255,255,0.2);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            cursor: pointer;
+            touch-action: none;
+        }
+
+        .compass-label { position: absolute; font-size: 8px; color: rgba(255,255,255,0.5); font-weight: bold; }
+        .compass-label.n { top: 2px; } .compass-label.e { right: 2px; } .compass-label.s { bottom: 2px; } .compass-label.w { left: 2px; }
+        .compass-control-ring { position: absolute; width: 100%; height: 100%; border-radius: 50%; border: 2px dashed #aaddff; opacity: 0; transition: opacity 0.3s; pointer-events: none; animation: spin 10s linear infinite; }
+        .compass:hover .compass-control-ring, .compass.active .compass-control-ring { opacity: 0.5; }
+        @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+        
+        .compass-arrow-container {
+            width: 40px;
+            height: 40px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        input[type=range] { -webkit-appearance: none; width: 100%; background: transparent; cursor: pointer; margin-top: 2px; }
+        input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; height: 14px; width: 14px; border-radius: 50%; background: #ffffff; cursor: pointer; margin-top: -5px; box-shadow: 0 0 5px rgba(255,255,255,0.8); border: 1px solid #ddd; }
+        input[type=range]::-webkit-slider-runnable-track { width: 100%; height: 4px; cursor: pointer; background: rgba(255,255,255,0.3); border-radius: 2px; }
+        .tick-marks { display: flex; justify-content: space-between; font-size: 9px; color: rgba(255,255,255,0.4); margin-top: 0px; padding: 0 2px; }
+        .tick-marks span.bold-white { color: #ffffff; font-weight: bold; font-size: 10px; }
+
+        /* --- 暫停閃爍動畫 --- */
+        #pause-overlay {
+            position: absolute;
+            top: 50%; left: 50%;
+            transform: translate(-50%, -50%);
+            pointer-events: none;
+            z-index: 1000;
+            opacity: 0;
+        }
+        
+        #pause-icon, #play-icon {
+            width: 100px;
+            height: 100px;
+            fill: rgba(255, 255, 255, 0.8);
+            filter: drop-shadow(0 0 10px rgba(0,0,0,0.5));
+            display: none;
+        }
+
+        .animate-flash {
+            animation: flashAnim 0.6s ease-out forwards;
+        }
+
+        @keyframes flashAnim {
+            0% { opacity: 0; transform: translate(-50%, -50%) scale(0.5); }
+            50% { opacity: 1; transform: translate(-50%, -50%) scale(1.2); }
+            100% { opacity: 0; transform: translate(-50%, -50%) scale(1.5); }
+        }
+
+        @media (max-width: 650px) {
+            .sidebar { right: 10px; gap: 10px; }
+            .pop-panel { right: 70px; }
+            .sidebar-btn { width: 40px; height: 40px; }
+            .tooltip { display: none; } 
+            
+            #panel-env, #panel-bubble-vars {
+                flex-direction: column;
+                min-width: auto;
+                width: 90%;
+                padding: 15px;
+            }
+            #panel-env { bottom: 200px; } 
+            #panel-bubble-vars { bottom: 10px; }
+
+            .vars-container {
+                flex-direction: column;
+                gap: 15px;
+            }
+            .section-sliders {
+                grid-template-columns: 1fr; 
+                gap: 15px;
+                width: 100%;
+            }
+            #intro-text { font-size: 12vw; }
+        }
     </style>
 </head>
 <body>
@@ -72,52 +475,160 @@
         <canvas id="bubbleCanvas"></canvas>
     </div>
 
-    <div id="intro-text">BUBBLE LAB</div>
+    <div id="intro-text">bubbleeeeeeeeeee</div>
+
+    <input type="file" id="file-input" accept="image/*">
+
+    <div id="pause-overlay">
+        <svg id="pause-icon" viewBox="0 0 24 24"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>
+        <svg id="play-icon" viewBox="0 0 24 24"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+    </div>
 
     <div id="ui-layer">
         <div class="sidebar">
             <div class="sidebar-btn-container">
-                <div class="sidebar-btn" id="btn-main-gen" onclick="togglePopPanel('panel-gen')">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/></svg>
+                <div class="sidebar-btn" id="btn-main-gen" onclick="togglePopPanel('panel-gen')" ondblclick="toggleAutoGen()">
+                    <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/></svg>
+                </div>
+                <div class="tooltip">
+                    <span class="tooltip-title">泡泡生成</span>
+                    <span class="tooltip-content">雙擊開啟<br>自動生成派對！</span>
                 </div>
             </div>
+
             <div class="sidebar-btn-container">
-                <div class="sidebar-btn" id="btn-main-needle" onclick="selectMainTool(3)">
-                    <svg viewBox="0 0 24 24"><path d="M20 4L4 20" stroke="white" stroke-width="2"/></svg>
+                <div class="sidebar-btn" id="btn-main-needle" onclick="selectMainTool(TOOLS.NEEDLE)" ondblclick="toggleNeedleSuper()">
+                    <svg viewBox="0 0 24 24"><path d="M20 4L4 20" stroke="white" stroke-width="2" stroke-linecap="round"/></svg>
+                </div>
+                <div class="tooltip">
+                    <span class="tooltip-title">針</span>
+                    <span class="tooltip-content">啵啵啵!!!<span class="bold-big">毀滅吧，世界</span><br>哇哈哈哈哈!!!<br>(雙擊開啟超級模式)</span>
+                </div>
+            </div>
+
+            <div class="sidebar-btn-container">
+                <div class="sidebar-btn" id="btn-main-env" onclick="togglePopPanel('panel-env')">
+                    <svg viewBox="0 0 24 24"><path d="M9.59 4.59A2 2 0 1 1 11 8H2m10.59 11.41A2 2 0 1 0 14 16H2m15.73-8.27A2.5 2.5 0 1 1 19.5 12H2"/></svg>
+                </div>
+                <div class="tooltip">
+                    <span class="tooltip-title">環境變因</span>
+                    <span class="tooltip-content">風向與風速</span>
+                </div>
+            </div>
+
+            <div class="sidebar-btn-container">
+                <div class="sidebar-btn" id="btn-main-bubble-vars" onclick="togglePopPanel('panel-bubble-vars')">
+                    <svg viewBox="0 0 24 24"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+                </div>
+                <div class="tooltip">
+                    <span class="tooltip-title">泡泡變因</span>
+                    <span class="tooltip-content">大小、速率與韌性</span>
+                </div>
+            </div>
+
+            <div class="sidebar-btn-container">
+                <div class="sidebar-btn" onclick="document.getElementById('file-input').click()">
+                    <svg viewBox="0 0 24 24"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+                </div>
+                <div class="tooltip">
+                    <span class="tooltip-title">上傳照片</span>
+                    <span class="tooltip-content">上傳背景照片以產生折射效果</span>
+                </div>
+            </div>
+
+            <div class="sidebar-btn-container">
+                <div class="sidebar-btn" id="btn-pause" onclick="togglePause()">
+                    <svg id="icon-pause-state" viewBox="0 0 24 24" style="display:block"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>
+                    <svg id="icon-play-state" viewBox="0 0 24 24" style="display:none"><polygon points="5 3 19 12 5 21 5 3"/></svg>
                 </div>
             </div>
         </div>
 
         <div class="pop-panel" id="panel-gen">
-            <div class="sub-tool-btn" id="btn-sub-gun" onclick="selectSubTool(0)">🔫</div>
-            <div class="sub-tool-btn" id="btn-sub-wand-simple" onclick="selectSubTool(6)">🧲</div>
+            <div class="tool-grid">
+                <div class="sub-tool-btn" id="btn-sub-gun" onclick="selectSubTool(TOOLS.GUN)" title="泡泡槍">
+                    <svg viewBox="0 0 24 24"><path d="M6 15h12l-3-8H9l-3 8zM3 21h18M2 18h20M5 18l1-3M19 18l-1-3M12 7V3M12 21v-3"/></svg>
+                </div>
+                <div class="sub-tool-btn" id="btn-sub-wand" onclick="selectSubTool(TOOLS.WAND)" title="M型夾 (擬真)">
+                    <svg viewBox="0 0 24 24"><circle cx="6" cy="12" r="4"/><circle cx="18" cy="12" r="4"/><path d="M10 12h4"/></svg>
+                </div>
+                <div class="sub-tool-btn" id="btn-sub-wand-simple" onclick="selectSubTool(TOOLS.WAND_SIMPLE)" title="M型夾 (經典)">
+                    <svg viewBox="0 0 24 24"><path d="M6 12 L12 6 L18 12" stroke-dasharray="2,2"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="12" r="3"/></svg>
+                </div>
+                <div class="sub-tool-btn" id="btn-sub-random" onclick="selectSubTool(TOOLS.RANDOM)" title="隨機跳躍 ?!">
+                    <span style="font-weight:900; color:#ffddaa; font-size:1.2rem;">?!</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="pop-panel" id="panel-env">
+            <div class="vars-container">
+                <div class="section-wind-dir">
+                    <div style="display: flex; align-items: center; gap: 5px;">
+                        <span class="panel-label">風向</span>
+                        <button class="random-btn active" id="btn-rand-dir" onclick="toggleRandom('dir')">?!</button>
+                    </div>
+                    <div class="compass" id="windCompass">
+                        <div class="compass-control-ring"></div>
+                        <div class="compass-label n">N</div>
+                        <div class="compass-label e">E</div>
+                        <div class="compass-label s">S</div>
+                        <div class="compass-label w">W</div>
+                        <div class="compass-arrow-container" id="compassArrow">
+                            <svg viewBox="0 0 100 100" fill="none"><path d="M50 85 L50 15" stroke="white" stroke-width="6"/><path d="M35 35 L50 10 L65 35" fill="white"/></svg>
+                        </div>
+                    </div>
+                    <div class="value-box" id="val-degree">0°</div>
+                </div>
+                <div class="section-sliders">
+                    <div class="control-item">
+                        <div class="label-row"><span class="panel-label">風速</span><div class="value-box" id="val-wind">2</div></div>
+                        <input type="range" min="0" max="17" value="2" id="range-wind">
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="pop-panel" id="panel-bubble-vars">
+            <div class="section-sliders">
+                <div class="control-item">
+                    <div class="label-row"><span class="panel-label">大小</span><div class="value-box" id="val-size">1x</div></div>
+                    <input type="range" min="50" max="250" value="100" id="range-size">
+                </div>
+                <div class="control-item">
+                    <div class="label-row"><span class="panel-label">速率</span><div class="value-box" id="val-rate">正常</div></div>
+                    <input type="range" min="0" max="100" value="50" id="range-rate">
+                </div>
+                <div class="control-item">
+                    <div class="label-row"><span class="panel-label">韌性</span><div class="value-box" id="val-life">中</div></div>
+                    <input type="range" min="0" max="2" value="1" id="range-life">
+                </div>
+            </div>
         </div>
     </div>
 
     <script>
-        // --- 音樂與音效管理系統 ---
+        // --- 音樂與音效管理 (小聲輕快) ---
         const AudioSys = {
             ctx: null,
-            bgmOsc: null,
             init() {
                 if (this.ctx) return;
                 this.ctx = new (window.AudioContext || window.webkitAudioContext)();
                 this.startBGM();
             },
             startBGM() {
-                // 創造一個簡單的循環輕快旋律 (小調五聲音階)
-                const notes = [261.63, 293.66, 329.63, 392.00, 440.00]; // C4, D4, E4, G4, A4
+                const notes = [261.63, 293.66, 329.63, 392.00, 440.00, 523.25]; 
                 let step = 0;
                 setInterval(() => {
-                    if (currentState !== 1) return; // 僅在遊戲中播放
-                    this.playNote(notes[step % notes.length], 0.1, 0.05);
-                    step += (Math.random() > 0.8 ? 2 : 1);
-                }, 250);
+                    if (currentState !== STATE.PLAYING) return;
+                    this.playPing(notes[step % notes.length], 0.15, 0.03); // 非常小聲 0.03
+                    step += (Math.random() > 0.7 ? 2 : 1);
+                }, 300);
             },
-            playNote(freq, dur, vol) {
+            playPing(freq, dur, vol) {
                 const osc = this.ctx.createOscillator();
                 const gain = this.ctx.createGain();
-                osc.type = 'triangle'; // 較柔和的聲音
+                osc.type = 'sine';
                 osc.frequency.setValueAtTime(freq, this.ctx.currentTime);
                 gain.gain.setValueAtTime(vol, this.ctx.currentTime);
                 gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + dur);
@@ -126,167 +637,167 @@
             },
             playPop() {
                 if (!this.ctx) return;
-                this.playNote(800 + Math.random() * 400, 0.1, 0.1);
+                this.playPing(800 + Math.random()*200, 0.1, 0.05);
             }
         };
 
         const canvas = document.getElementById('bubbleCanvas');
         const ctx = canvas.getContext('2d');
-        const TOOLS = { GUN: 0, WAND_SIMPLE: 6, NEEDLE: 3 };
-        let currentState = 0; // 0: Start, 1: Playing
+        const STATE = { START_SCREEN: 0, PLAYING: 1, PAUSED: 2 };
+        let currentState = STATE.START_SCREEN;
+        const TOOLS = { GUN: 0, WAND: 2, NEEDLE: 3, RANDOM: 5, WAND_SIMPLE: 6 };
         let currentTool = TOOLS.GUN;
+        let isAutoGen = false;
+        let env = { windSpeedLevel: 2, windDirectionAngle: 0, bubbleLifeLevel: 1, bubbleSizeLevel: 100, genRateLevel: 50 };
+        let pointer = { x: 0, y: 0, isDown: false, startX: 0, startY: 0 };
         let width, height;
         let bubbles = [];
         let particles = [];
-        let pointer = { x: 0, y: 0, isDown: false, startX: 0, startY: 0 };
-        let env = { wind: 2, bubbleLife: 300, bubbleSize: 1 };
 
-        // --- 泡泡類別 ---
+        // --- M 型夾(擬真)的核心變數 ---
+        let wandState = { active: false, startX: 0, startY: 0, endX: 0, endY: 0 };
+
         class Bubble {
             constructor(x, y, radius, vx, vy) {
-                this.x = x; this.y = y; this.radius = radius;
+                this.x = x; this.y = y; this.radius = radius * (env.bubbleSizeLevel / 100);
                 this.vx = vx; this.vy = vy;
-                this.maxLife = env.bubbleLife + Math.random() * 100;
                 this.age = 0; this.popping = false;
+                let lifeTable = [100, 400, 1500];
+                this.maxLife = lifeTable[Math.round(env.bubbleLifeLevel)] + Math.random()*100;
             }
             update() {
                 this.age++;
                 this.x += this.vx; this.y += this.vy;
-                this.vy -= 0.02; // 浮力
+                const rad = (env.windDirectionAngle - 90) * Math.PI / 180;
+                this.vx += Math.cos(rad) * env.windSpeedLevel * 0.005;
+                this.vy += Math.sin(rad) * env.windSpeedLevel * 0.005 - 0.02;
+                this.vx *= 0.99; this.vy *= 0.99;
                 if (this.age > this.maxLife) this.pop();
             }
             draw() {
                 ctx.beginPath();
-                const grad = ctx.createRadialGradient(this.x-this.radius*0.3, this.y-this.radius*0.3, this.radius*0.1, this.x, this.y, this.radius);
-                grad.addColorStop(0, "rgba(255,255,255,0.4)");
-                grad.addColorStop(1, "hsla("+(this.age%360)+", 70%, 70%, 0.3)");
-                ctx.fillStyle = grad;
                 ctx.arc(this.x, this.y, this.radius, 0, Math.PI*2);
+                ctx.fillStyle = `hsla(${this.age%360}, 70%, 70%, 0.3)`;
                 ctx.fill();
                 ctx.strokeStyle = "rgba(255,255,255,0.5)";
                 ctx.stroke();
             }
-            pop() {
-                this.popping = true;
-                AudioSys.playPop();
-                for(let i=0; i<8; i++) particles.push(new Particle(this.x, this.y));
-            }
+            pop() { this.popping = true; AudioSys.playPop(); }
         }
 
         class Particle {
             constructor(x, y) {
                 this.x = x; this.y = y;
-                this.vx = (Math.random()-0.5)*5; this.vy = (Math.random()-0.5)*5;
+                this.vx = (Math.random()-0.5)*6; this.vy = (Math.random()-0.5)*6;
                 this.life = 1.0;
             }
-            update() { this.x += this.vx; this.y += this.vy; this.life -= 0.05; }
-            draw() { ctx.fillStyle = `rgba(200,220,255,${this.life})`; ctx.fillRect(this.x, this.y, 2, 2); }
+            update() { this.x += this.vx; this.y += this.vy; this.life -= 0.03; }
+            draw() { ctx.fillStyle=`rgba(255,255,255,${this.life})`; ctx.fillRect(this.x,this.y,2,2); }
         }
 
-        // --- 核心邏輯 ---
+        // --- 事件監聽 ---
         function init() {
-            resize();
             window.addEventListener('resize', resize);
-            canvas.addEventListener('mousedown', handleDown);
-            window.addEventListener('mouseup', handleUp);
-            canvas.addEventListener('mousemove', e => { pointer.x = e.clientX; pointer.y = e.clientY; });
+            resize();
+            canvas.addEventListener('mousedown', (e) => {
+                AudioSys.init();
+                pointer.isDown = true;
+                pointer.startX = e.clientX; pointer.startY = e.clientY;
+                if (currentState === STATE.START_SCREEN) {
+                    currentState = STATE.PLAYING;
+                    document.getElementById('intro-text').classList.add('fade-out');
+                }
+            });
+            window.addEventListener('mouseup', () => {
+                if (pointer.isDown && currentTool === TOOLS.WAND_SIMPLE) {
+                    fireWandBubble();
+                }
+                pointer.isDown = false;
+            });
+            canvas.addEventListener('mousemove', (e) => { pointer.x = e.clientX; pointer.y = e.clientY; });
             loop();
         }
 
         function resize() { width = canvas.width = window.innerWidth; height = canvas.height = window.innerHeight; }
 
-        function handleDown(e) {
-            AudioSys.init(); // 啟動 AudioContext
-            pointer.isDown = true;
-            pointer.startX = e.clientX;
-            pointer.startY = e.clientY;
-
-            if (currentState === 0) {
-                currentState = 1;
-                document.getElementById('intro-text').classList.add('fade-out');
-            }
-        }
-
-        function handleUp() {
-            if (!pointer.isDown) return;
-            pointer.isDown = false;
-            // 替換後的 M 型夾邏輯：放開時彈射
-            if (currentTool === TOOLS.WAND_SIMPLE) {
-                fireWandBubble();
-            }
-        }
-
-        // --- 取代後的 M 型夾發射程式碼 ---
+        // --- 取代原本 M型夾(經典) 的邏輯 ---
         function fireWandBubble() {
             const dx = pointer.x - pointer.startX;
             const dy = pointer.y - pointer.startY;
             const dist = Math.sqrt(dx*dx + dy*dy);
-            
-            let radius = Math.min(dist * 0.4, 150); 
-            if (radius < 20) radius = 20;
-
-            const velocityScale = 0.15;
-            const vx = -dx * velocityScale;
-            const vy = -dy * velocityScale;
-
+            if (dist < 10) return;
+            const radius = Math.min(dist * 0.5, 120);
+            const vx = -dx * 0.15;
+            const vy = -dy * 0.15;
             bubbles.push(new Bubble(pointer.x, pointer.y, radius, vx, vy));
         }
 
-        function drawWandVisuals() {
+        function drawWandSimple() {
             if (currentTool === TOOLS.WAND_SIMPLE && pointer.isDown) {
+                ctx.save();
                 ctx.beginPath();
-                ctx.moveTo(pointer.startX - 30, pointer.startY);
-                ctx.lineTo(pointer.x, pointer.y);
-                ctx.lineTo(pointer.startX + 30, pointer.startY);
-                ctx.fillStyle = "rgba(255, 255, 255, 0.2)";
-                ctx.fill();
-                ctx.strokeStyle = "white";
+                ctx.moveTo(pointer.startX - 40, pointer.startY);
+                ctx.quadraticCurveTo(pointer.x, pointer.y, pointer.startX + 40, pointer.startY);
+                ctx.strokeStyle = "rgba(255,255,255,0.6)";
+                ctx.lineWidth = 3;
                 ctx.stroke();
+                ctx.fillStyle = "rgba(100,200,255,0.15)";
+                ctx.fill();
+                // 畫兩個端點
+                ctx.fillStyle = "white";
+                ctx.beginPath(); ctx.arc(pointer.startX-40, pointer.startY, 5, 0, Math.PI*2); ctx.fill();
+                ctx.beginPath(); ctx.arc(pointer.startX+40, pointer.startY, 5, 0, Math.PI*2); ctx.fill();
+                ctx.restore();
             }
         }
 
         function loop() {
             ctx.clearRect(0, 0, width, height);
-            
-            if (currentState === 1) {
+            if (currentState === STATE.PLAYING) {
                 if (currentTool === TOOLS.GUN && pointer.isDown && Math.random() > 0.8) {
-                    bubbles.push(new Bubble(pointer.x, pointer.y, 10 + Math.random()*10, (Math.random()-0.5)*4, (Math.random()-0.5)*4));
+                    bubbles.push(new Bubble(pointer.x, pointer.y, 15, (Math.random()-0.5)*5, (Math.random()-0.5)*5));
                 }
-                drawWandVisuals();
+                drawWandSimple();
             }
 
-            bubbles.forEach((b, i) => {
+            bubbles.forEach(b => {
                 b.update(); b.draw();
                 if (currentTool === TOOLS.NEEDLE && pointer.isDown) {
-                    let d = Math.hypot(b.x - pointer.x, b.y - pointer.y);
-                    if (d < b.radius) b.pop();
+                    if (Math.hypot(b.x-pointer.x, b.y-pointer.y) < b.radius) b.pop();
                 }
             });
             bubbles = bubbles.filter(b => !b.popping);
-
+            
             particles.forEach(p => { p.update(); p.draw(); });
             particles = particles.filter(p => p.life > 0);
 
             requestAnimationFrame(loop);
         }
 
+        // --- UI 控制函式 ---
         function togglePopPanel(id) {
             const p = document.getElementById(id);
-            p.style.display = p.style.display === 'flex' ? 'none' : 'flex';
+            const isShow = p.style.display === 'flex';
+            document.querySelectorAll('.pop-panel').forEach(panel => panel.style.display = 'none');
+            p.style.display = isShow ? 'none' : 'flex';
         }
 
         function selectSubTool(t) {
             currentTool = t;
-            document.querySelectorAll('.sub-tool-btn').forEach(b => b.classList.remove('active'));
-            if(t === 0) document.getElementById('btn-sub-gun').classList.add('active');
-            if(t === 6) document.getElementById('btn-sub-wand-simple').classList.add('active');
+            document.querySelectorAll('.sub-tool-btn').forEach(btn => btn.classList.remove('active'));
+            if (t === TOOLS.GUN) document.getElementById('btn-sub-gun').classList.add('active');
+            if (t === TOOLS.WAND_SIMPLE) document.getElementById('btn-sub-wand-simple').classList.add('active');
+            if (t === TOOLS.WAND) document.getElementById('btn-sub-wand').classList.add('active');
         }
-        
+
         function selectMainTool(t) {
             currentTool = t;
             document.querySelectorAll('.sidebar-btn').forEach(b => b.classList.remove('active'));
             document.getElementById('btn-main-needle').classList.add('active');
         }
+
+        function toggleAutoGen() { isAutoGen = !isAutoGen; document.getElementById('btn-main-gen').classList.toggle('auto-mode'); }
+        function togglePause() { currentState = (currentState === STATE.PAUSED) ? STATE.PLAYING : STATE.PAUSED; }
 
         init();
     </script>
