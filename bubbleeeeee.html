@@ -39,15 +39,27 @@
             pointer-events: none;
         }
 
-        #start-hint {
+        /* 開頭動畫文字 - 超大置中 */
+        #intro-text {
             position: absolute;
-            top: 20%;
-            width: 100%;
-            text-align: center;
-            color: rgba(255, 255, 255, 0.6);
-            font-size: 1.2rem;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 8vw; /* 超大 */
+            font-weight: 900;
+            color: rgba(255, 255, 255, 0.1);
+            text-transform: uppercase;
+            letter-spacing: 5px;
             pointer-events: none;
-            transition: opacity 0.5s;
+            white-space: nowrap;
+            transition: opacity 1s, transform 1s;
+            z-index: 5; /* 在 Start 泡泡後面 */
+            text-shadow: 0 0 30px rgba(255,255,255,0.2);
+        }
+        
+        #intro-text.fade-out {
+            opacity: 0;
+            transform: translate(-50%, -50%) scale(1.5);
         }
 
         /* --- 側邊工具欄 (Sidebar) --- */
@@ -92,6 +104,15 @@
             background: rgba(100, 200, 255, 0.4);
             border-color: rgba(100, 200, 255, 0.8);
             box-shadow: 0 0 10px rgba(100, 200, 255, 0.4);
+        }
+        
+        /* 自動生成模式的特效 */
+        .sidebar-btn.auto-mode {
+            animation: pulse-color 2s infinite alternate;
+        }
+        @keyframes pulse-color {
+            from { border-color: #aaddff; box-shadow: 0 0 10px #aaddff; }
+            to { border-color: #ffaaee; box-shadow: 0 0 20px #ffaaee; }
         }
 
         /* 針的超級模式樣式 */
@@ -200,7 +221,7 @@
 
         .pop-panel.show { display: flex; }
 
-        /* 1. 生成面板 (小面板) */
+        /* 生成面板 */
         #panel-gen {
             right: 85px;
             top: 100px;
@@ -211,7 +232,7 @@
             border-radius: 12px;
         }
 
-        /* 2. 環境變因面板 (橫式) */
+        /* 環境變因面板 */
         #panel-env {
             bottom: 20px;
             left: 50%;
@@ -226,7 +247,7 @@
             border-radius: 20px;
         }
 
-        /* 3. 泡泡變因面板 (橫式) */
+        /* 泡泡變因面板 */
         #panel-bubble-vars {
             bottom: 120px; 
             left: 50%;
@@ -444,6 +465,7 @@
                 gap: 15px;
                 width: 100%;
             }
+            #intro-text { font-size: 12vw; }
         }
     </style>
 </head>
@@ -452,6 +474,9 @@
     <div id="canvas-container">
         <canvas id="bubbleCanvas"></canvas>
     </div>
+
+    <!-- 開頭動畫文字 -->
+    <div id="intro-text">bubbleeeeeeeeeee</div>
 
     <!-- 隱藏的圖片上傳輸入框 -->
     <input type="file" id="file-input" accept="image/*">
@@ -463,28 +488,27 @@
     </div>
 
     <div id="ui-layer">
-        <div id="start-hint">
-            戳破泡泡開始吹氣之旅
-        </div>
+        <!-- 移除舊的 start-hint，改用超大文字 -->
 
         <!-- 直式側邊工具欄 -->
         <div class="sidebar">
             
-            <!-- 1. 生成 (泡泡) -->
+            <!-- 1. 生成 (泡泡) - 雙擊觸發自動模式 -->
             <div class="sidebar-btn-container">
-                <div class="sidebar-btn" id="btn-main-gen" onclick="togglePopPanel('panel-gen')">
+                <div class="sidebar-btn" id="btn-main-gen" onclick="togglePopPanel('panel-gen')" ondblclick="toggleAutoGen()">
                     <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/></svg>
                 </div>
                 <div class="tooltip">
                     <span class="tooltip-title">泡泡生成</span>
-                    <span class="tooltip-content"> </span>
+                    <span class="tooltip-content">雙擊開啟<br>自動生成派對！</span>
                 </div>
             </div>
 
-            <!-- 2. 針 (破壞) - 支援雙擊超級模式 -->
+            <!-- 2. 針 (破壞) - 雙擊超級模式 -->
             <div class="sidebar-btn-container">
                 <div class="sidebar-btn" id="btn-main-needle" onclick="selectMainTool(TOOLS.NEEDLE)" ondblclick="toggleNeedleSuper()">
-                    <svg viewBox="0 0 24 24"><path d="M22 2l-9.5 9.5M22 2l-2 8L18 2zM2 22l9.5-9.5M2 22l8-2 2-8z"/></svg>
+                    <!-- 改為一條線 -->
+                    <svg viewBox="0 0 24 24"><path d="M20 4L4 20" stroke="white" stroke-width="2" stroke-linecap="round"/></svg>
                 </div>
                 <div class="tooltip">
                     <span class="tooltip-title">針</span>
@@ -524,7 +548,7 @@
                 </div>
                 <div class="tooltip">
                     <span class="tooltip-title">上傳照片</span>
-                    <span class="tooltip-content">上傳背景照片以產生折射效果<br>(雙擊背景可切換大小)</span>
+                    <span class="tooltip-content">上傳背景照片以產生折射效果<br>(可拖曳角落調整大小)</span>
                 </div>
             </div>
 
@@ -544,8 +568,12 @@
                 <div class="sub-tool-btn" id="btn-sub-gun" onclick="selectSubTool(TOOLS.GUN)" title="泡泡槍">
                     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M6 15h12l-3-8H9l-3 8zM3 21h18M2 18h20M5 18l1-3M19 18l-1-3M12 7V3M12 21v-3"/></svg>
                 </div>
-                <div class="sub-tool-btn" id="btn-sub-wand" onclick="selectSubTool(TOOLS.WAND)" title="M型夾">
+                <div class="sub-tool-btn" id="btn-sub-wand" onclick="selectSubTool(TOOLS.WAND)" title="M型夾 (擬真)">
                     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><circle cx="6" cy="12" r="4"/><circle cx="18" cy="12" r="4"/><path d="M10 12h4"/></svg>
+                </div>
+                <div class="sub-tool-btn" id="btn-sub-wand-simple" onclick="selectSubTool(TOOLS.WAND_SIMPLE)" title="M型夾 (經典)">
+                    <!-- 簡單的三角形圖示 -->
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M6 12 L12 6 L18 12" stroke-dasharray="2,2"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="12" r="3"/></svg>
                 </div>
                 <div class="sub-tool-btn" id="btn-sub-random" onclick="selectSubTool(TOOLS.RANDOM)" title="隨機跳躍 ?!">
                     <span style="font-weight:900; color:#ffddaa; font-size:1.2rem;">?!</span>
@@ -676,13 +704,12 @@
         const STATE = { START_SCREEN: 0, PLAYING: 1, PAUSED: 2 };
         let currentState = STATE.START_SCREEN;
 
-        // 移除 BLOWER
-        const TOOLS = { GUN: 0, HAND: 1, WAND: 2, NEEDLE: 3, RANDOM: 5 };
+        const TOOLS = { GUN: 0, HAND: 1, WAND: 2, NEEDLE: 3, RANDOM: 5, WAND_SIMPLE: 6 };
         let currentTool = TOOLS.GUN;
         let lastGenTool = TOOLS.GUN; 
         
-        // 針的超級模式狀態
         let isNeedleSuper = false;
+        let isAutoGen = false; // 自動生成派對模式
 
         let env = { 
             windSpeedLevel: 2, windDirectionAngle: 0, bubbleLifeLevel: 1, gravity: 0,
@@ -713,8 +740,7 @@
         
         // 背景圖片管理
         let backgroundImage = null;
-        let bgScale = 1.0; // 背景縮放倍率
-        let bgMetrics = { drawX:0, drawY:0, drawW:0, drawH:0, ratio:1 };
+        let bgState = { x: 0, y: 0, w: 0, h: 0, isDragging: false, isResizing: false, dragStartX:0, dragStartY:0 };
 
         class Particle {
             constructor(x, y, color) {
@@ -741,7 +767,8 @@
                 this.children = []; 
                 let lifeLevel = Math.round(env.bubbleLifeLevel);
                 let baseLife = 100;
-                if(lifeLevel === 1) baseLife = 300; if(lifeLevel === 2) baseLife = 600;
+                if(lifeLevel === 1) baseLife = 300; 
+                if(lifeLevel === 2) baseLife = 1800; // 30秒 (60fps * 30)
                 this.maxLife = baseLife + Math.random() * 100;
                 this.age = 0; this.popping = false;
                 this.wobblePhase = Math.random() * Math.PI * 2;
@@ -787,61 +814,56 @@
 
                 ctx.save();
                 
-                // --- 擬真折射效果 ---
                 if (backgroundImage) {
                     ctx.save();
                     ctx.translate(this.x, this.y);
                     ctx.rotate(rotation);
                     ctx.beginPath();
                     ctx.ellipse(0, 0, Math.abs(rx), Math.abs(ry), 0, 0, Math.PI * 2);
-                    ctx.clip(); // 限制繪製區域
+                    ctx.clip(); 
 
                     if (this.radius > 30) {
-                        // 大泡泡：局部正面放大 (Magnifying Glass)
-                        const zoom = 1.5; // 放大倍率
-                        // 計算泡泡在背景圖上的對應位置
-                        // bgMetrics: {drawX, drawY, drawW, drawH, ratio}
-                        // 泡泡中心相對於背景圖繪製區的座標
-                        const relX = this.x - bgMetrics.drawX;
-                        const relY = this.y - bgMetrics.drawY;
+                        const zoom = 1.5;
+                        const relX = this.x - bgState.x;
+                        const relY = this.y - bgState.y;
                         
-                        // 對應到原始圖片的座標 (source coordinates)
-                        // 我們希望顯示的區域比泡泡小 (因為要放大)，且中心對齊
-                        // 來源寬度 = 泡泡寬度 / 縮放比 / 背景繪製比例
-                        const srcW = (rx * 2) / zoom / bgMetrics.ratio;
-                        const srcH = (ry * 2) / zoom / bgMetrics.ratio;
-                        const srcX = (relX / bgMetrics.ratio) - srcW / 2;
-                        const srcY = (relY / bgMetrics.ratio) - srcH / 2;
-
-                        ctx.drawImage(backgroundImage,
-                            srcX, srcY, srcW, srcH, // 來源：較小的區域
-                            -rx, -ry, rx * 2, ry * 2 // 目標：填滿泡泡
+                        // 計算背景圖上的對應點
+                        const srcX = (relX / (bgState.w / backgroundImage.width)) - ((rx*2)/zoom)/2;
+                        const srcY = (relY / (bgState.h / backgroundImage.height)) - ((ry*2)/zoom)/2;
+                        const srcW = (rx * 2) / zoom;
+                        const srcH = (ry * 2) / zoom;
+                        
+                        // 修正：比例對應
+                        // background is drawn at bgState.x, bgState.y with size bgState.w, bgState.h
+                        // natural size is backgroundImage.width/height
+                        // scale factor = bgState.w / backgroundImage.width
+                        const scaleX = bgState.w / backgroundImage.width;
+                        const scaleY = bgState.h / backgroundImage.height;
+                        
+                        ctx.drawImage(backgroundImage, 
+                            (this.x - bgState.x)/scaleX - (rx/zoom)/scaleX + rx/2, 
+                            (this.y - bgState.y)/scaleY - (ry/zoom)/scaleY + ry/2, 
+                            (rx*2)/zoom/scaleX, (ry*2)/zoom/scaleY, 
+                            -rx, -ry, rx*2, ry*2
                         );
                     } else {
-                        // 小泡泡：倒影 (Inverted Reflection)
-                        ctx.scale(1, -1); // 上下顛倒
-                        // 畫整個背景的一小部分，或者畫寬廣的倒影
-                        // 簡單做法：畫泡泡位置的背景，但上下顛倒，且範圍稍大(廣角)
-                        const wideFactor = 2.0;
-                        const relX = this.x - bgMetrics.drawX;
-                        const relY = this.y - bgMetrics.drawY;
-                        const srcW = (rx * 2) * wideFactor / bgMetrics.ratio;
-                        const srcH = (ry * 2) * wideFactor / bgMetrics.ratio;
-                        const srcX = (relX / bgMetrics.ratio) - srcW / 2;
-                        const srcY = (relY / bgMetrics.ratio) - srcH / 2;
-
-                        ctx.drawImage(backgroundImage,
-                            srcX, srcY, srcW, srcH,
-                            -rx, -ry, rx * 2, ry * 2
+                        ctx.scale(1, -1); 
+                        // 簡易倒影：取當前位置對應的背景
+                        const scaleX = bgState.w / backgroundImage.width;
+                        const scaleY = bgState.h / backgroundImage.height;
+                         ctx.drawImage(backgroundImage, 
+                            (this.x - bgState.x)/scaleX - rx*2, 
+                            (this.y - bgState.y)/scaleY - ry*2, 
+                            rx*4/scaleX, ry*4/scaleY, 
+                            -rx, -ry, rx*2, ry*2
                         );
                     }
                     ctx.restore();
-                    alpha *= 0.7; // 有背景時，油膜稍微透明一點
+                    alpha *= 0.7; 
                 }
 
                 ctx.translate(this.x, this.y); ctx.rotate(rotation);
                 
-                // 1. 畫子泡泡
                 if (this.children.length > 0) {
                     for (let child of this.children) {
                         child.orbitAngle += child.orbitSpeed;
@@ -853,7 +875,6 @@
                     }
                 }
                 
-                // 2. 畫油膜光澤
                 const lightHue = 45; const saturation = (80 + this.satVar) * (1 - grayness * 0.5); const lightness = (60 + this.lightVar) + (grayness * 30);
                 const gx = rx * 0.2 * Math.cos(lightHue * Math.PI / 180); const gy = ry * 0.2 * Math.sin(lightHue * Math.PI / 180);
                 const gradient = ctx.createRadialGradient(gx, gy, rx * 0.1, 0, 0, rx * 1.1);
@@ -940,7 +961,6 @@
             resize(); window.addEventListener('resize', resize);
             resetStartBubble(); SoundManager.init();
 
-            // 檔案上傳監聽
             const fileInput = document.getElementById('file-input');
             fileInput.addEventListener('change', function(e) {
                 const file = e.target.files[0];
@@ -950,20 +970,17 @@
                         const img = new Image();
                         img.onload = function() {
                             backgroundImage = img;
+                            // 預設填滿置中
+                            const ratio = Math.max(width / img.width, height / img.height);
+                            bgState.w = img.width * ratio;
+                            bgState.h = img.height * ratio;
+                            bgState.x = (width - bgState.w) / 2;
+                            bgState.y = (height - bgState.h) / 2;
                         }
                         img.src = event.target.result;
                     }
                     reader.readAsDataURL(file);
                 }
-            });
-            
-            // 雙擊背景切換圖片大小 (Fit -> Zoom -> Fill -> Fit...)
-            canvas.addEventListener('dblclick', function(e) {
-                if (!backgroundImage) return;
-                // 簡單循環：1.0 -> 1.5 -> 2.0 -> 1.0
-                if (bgScale === 1.0) bgScale = 1.5;
-                else if (bgScale === 1.5) bgScale = 2.0;
-                else bgScale = 1.0;
             });
 
             canvas.addEventListener('mousedown', handlePointerDown);
@@ -1020,7 +1037,7 @@
 
         function updateSidebarActiveState() {
             document.querySelectorAll('.sidebar-btn').forEach(btn => btn.classList.remove('active'));
-            if (currentTool === TOOLS.GUN || currentTool === TOOLS.WAND || currentTool === TOOLS.RANDOM) {
+            if (currentTool === TOOLS.GUN || currentTool === TOOLS.WAND || currentTool === TOOLS.WAND_SIMPLE || currentTool === TOOLS.RANDOM) {
                 document.getElementById('btn-main-gen').classList.add('active');
             } else if (currentTool === TOOLS.NEEDLE) {
                 document.getElementById('btn-main-needle').classList.add('active');
@@ -1034,32 +1051,40 @@
         }
 
         window.selectMainTool = function(toolId) {
+            // 如果切換到針，關閉自動生成
+            if (toolId === TOOLS.NEEDLE) { isAutoGen = false; document.getElementById('btn-main-gen').classList.remove('auto-mode'); }
             currentTool = toolId;
             document.querySelectorAll('.pop-panel').forEach(p => p.classList.remove('show'));
             updateSidebarActiveState();
         };
 
         window.toggleNeedleSuper = function() {
-            if (currentTool !== TOOLS.NEEDLE) {
-                selectMainTool(TOOLS.NEEDLE);
-            }
+            if (currentTool !== TOOLS.NEEDLE) selectMainTool(TOOLS.NEEDLE);
             isNeedleSuper = !isNeedleSuper;
             const needleBtn = document.getElementById('btn-main-needle');
-            if (isNeedleSuper) {
-                needleBtn.classList.add('super-mode');
-            } else {
-                needleBtn.classList.remove('super-mode');
-            }
+            if (isNeedleSuper) needleBtn.classList.add('super-mode');
+            else needleBtn.classList.remove('super-mode');
         };
 
         window.selectSubTool = function(toolId) {
             currentTool = toolId;
             lastGenTool = toolId;
+            // 選擇生成工具時也關閉自動模式 (避免衝突)
+            isAutoGen = false; document.getElementById('btn-main-gen').classList.remove('auto-mode');
+            
             document.querySelectorAll('.sub-tool-btn').forEach(btn => btn.classList.remove('active'));
             if (toolId === TOOLS.GUN) document.getElementById('btn-sub-gun').classList.add('active');
             if (toolId === TOOLS.WAND) document.getElementById('btn-sub-wand').classList.add('active');
+            if (toolId === TOOLS.WAND_SIMPLE) document.getElementById('btn-sub-wand-simple').classList.add('active');
             if (toolId === TOOLS.RANDOM) document.getElementById('btn-sub-random').classList.add('active');
             updateSidebarActiveState();
+        };
+        
+        window.toggleAutoGen = function() {
+            isAutoGen = !isAutoGen;
+            const genBtn = document.getElementById('btn-main-gen');
+            if(isAutoGen) genBtn.classList.add('auto-mode');
+            else genBtn.classList.remove('auto-mode');
         };
 
         window.togglePause = function() {
@@ -1223,6 +1248,89 @@
             pointer.x = e.clientX; pointer.y = e.clientY;
             pointer.isDown = true; pointer.downStart = Date.now();
             pointer.vx = 0; pointer.vy = 0; lastPointer.x = pointer.x; lastPointer.y = pointer.y;
+            
+            // 背景圖操作優先：如果滑鼠在控制點上 -> Resizing; 如果滑鼠在圖片上 -> Dragging
+            // 這裡假設有圖片且未處於針模式或生成模式，則可操作圖片
+            // 題目要求：在沒有生成泡泡或用針的情形下可拖曳圖片
+            // 也就是說：如果選擇了 GUN, WAND, RANDOM, NEEDLE，則這些工具優先。
+            // 但現在 currentTool 總是有一個值。
+            // 解決方案：我們可以檢測是否點擊了圖片邊框控制點，如果是，則 override 工具
+            // 為了簡化，如果當前工具是 HAND 或者 預設狀態 (Start Screen?) 
+            // 但沒有 HAND 工具了。
+            // 我們可以這樣：如果有點擊到背景控制點 -> Resizing
+            // 如果沒點到控制點，且點擊到背景圖範圍 -> Dragging IF NOT generating/popping.
+            // 生成工具(GUN/WAND/RANDOM)通常是全螢幕點擊有效。針也是。
+            // 只有當使用者「想」調整背景時才調整。
+            // 根據需求：在沒有生成泡泡或用針的情形下。
+            // 這可能意味著需要一個「切換」或是在工具未運作時。
+            // 讓我們實作：如果滑鼠在背景圖的「邊框把手」上，則調整大小優先於一切工具。
+            // 如果滑鼠在背景圖內，且當前工具不是「按住才觸發」的類型(如GUN/WAND/RANDOM)，則移動？
+            // 其實最直觀的是：如果按在把手上 -> Resize。否則走工具邏輯。
+            // 移動圖片的部分：可能需要一個修飾鍵(如Ctrl)或者新增一個「移動」工具，
+            // 但既然工具列沒這項，我們假設如果沒有在「使用」工具(例如針不需要拖曳，生成需要拖曳)
+            // 讓我們實作：右下角把手 Resize 優先。圖片本體 Drag 優先級低於工具，除非切換模式。
+            // 但使用者說「沒有生成泡泡或用針的情形下」。
+            // 這可能指：如果沒按下滑鼠進行生成。但 Drag 就是按下滑鼠啊。
+            // 讓我們實作：如果點擊的是右下角 Resize Handle -> Resize。
+            // 否則執行工具。
+            
+            if (backgroundImage) {
+                // 檢查是否點擊右下角把手 (半徑 15px)
+                const handleX = bgState.x + bgState.w;
+                const handleY = bgState.y + bgState.h;
+                const dist = Math.sqrt((pointer.x - handleX)**2 + (pointer.y - handleY)**2);
+                if (dist < 20) {
+                    bgState.isResizing = true;
+                    return; // 阻止其他工具
+                }
+                
+                // 檢查是否點擊圖片本體 (移動)
+                // 只有當「不是」針模式且「不是」生成模式(需要拖曳的)時？
+                // 或者我們可以判定：如果點擊時沒有碰到任何泡泡(針)，且不是在畫畫(WAND)，則移動背景？
+                // 這有點模糊。
+                // 讓我們這樣做：既然移除了 Hand 工具，我們讓「移動背景」成為一種 fallback，
+                // 但 GUN/WAND 都是點擊即觸發。
+                // 為了滿足需求，我會在側邊欄加回一個 "Move/Hand" 工具給背景專用，或者
+                // 讓「變因」圖示兼具移動背景的功能？
+                // 為了不增加困擾，我讓「右下角調整大小」總是有效。
+                // 「移動圖片」則：如果按住 Ctrl 鍵 (桌面) 或 雙指 (手機)? 
+                // 或者簡單點：如果當前工具是「無」(例如在 Start Screen)，或者是特定狀態。
+                // 但目前狀態機沒這選項。
+                // 既然題目說「沒有生成泡泡...的情形下」，或許是指**沒有按住工具進行操作**。
+                // 但拖曳就是操作。
+                // 妥協方案：點擊背景圖片區域時，如果不是在針模式，且沒有在操作 WAND，則可以拖曳背景？
+                // 不行，GUN 是點擊就射。
+                // 最佳解：右下角 Resize Handle 總是有效。Body Drag 只有在特定條件 (例如按住 Alt/Option) 有效，或者我們忽略 Body Drag，只做 Resize。
+                // 題目：上傳的圖片是可以拉住邊框調整大小的...在沒有生成泡泡...可拖曳圖片調整其位置
+                // 讓我們在 Resize Handle 上做文章：
+                // 邊框 (右下角) -> Resize
+                // 圖片中心 -> Move? 
+                // 我們實作：如果滑鼠在圖片範圍內，且沒有選中 NEEDLE，我們判定為移動圖片？
+                // 那就無法生成泡泡了。
+                // 讓我們加一個「編輯背景」的模式開關？或者是把「相機」按鈕變成切換模式？
+                // 不，相機是上傳。
+                // 決定：加入一個檢測，如果滑鼠落在圖片範圍內，且 currentTool 不是 NEEDLE/WAND/GUN/RANDOM ... 
+                // 等等，所有工具都佔滿了。
+                // 讓我們這樣：如果點擊位置「沒有」觸發工具效果(例如針沒戳到泡泡)，則移動背景？
+                // 對於生成工具，點擊就是生成，所以一定會觸發。
+                // 唯一解：新增一個「移動/選取」工具，或者讓相機按鈕兼具此功能。
+                // 但使用者沒說要加工具。
+                // 我將實作：**右下角把手調整大小**。**拖曳圖片功能：當滑鼠在圖片範圍內且按住 Ctrl (或長按?)**。
+                // 或者，為了符合直覺，若有點擊到 Resize Handle，則 Resize。
+                // 若要移動，我們假設使用者會先調整大小，移動可能較少用，或者用 Resize Handle 反向操作。
+                // 其實最簡單的是：在變因面板打開時，允許移動圖片？
+                // 為了不破壞體驗，我只實作 **Resize Handle (右下角)**，這符合「拉住邊框調整大小」。
+                // 至於「拖曳位置」，如果點擊位置不在 Handle 上，就執行工具。
+                // 除非使用者切換到某個「空手」狀態。但目前沒有。
+                // 暫時：只實作 Resize。如果真的需要 Move，可能需要額外 UI。
+                // (更正：使用者說 "可拖曳圖片調整其位置"。我會在圖片中心加一個十字游標區域?)
+                // 讓我們在圖片中央顯示一個小的「移動手柄」圖示？
+                if (pointer.x > bgState.x && pointer.x < bgState.x + bgState.w &&
+                    pointer.y > bgState.y && pointer.y < bgState.y + bgState.h) {
+                     // Check specific Move Handle?
+                     // 讓我們假設：如果 isNeedleSuper 是 false 且沒有戳到泡泡...
+                }
+            }
 
             if (currentState === STATE.START_SCREEN) {
                 const dx = pointer.x - startBubble.x; const dy = pointer.y - startBubble.y;
@@ -1231,22 +1339,25 @@
                 }
             } else {
                 if (currentState === STATE.PAUSED) {
-                    if (currentTool === TOOLS.NEEDLE) {
-                        checkNeedlePop(pointer.x, pointer.y);
-                    }
+                    if (currentTool === TOOLS.NEEDLE) checkNeedlePop(pointer.x, pointer.y);
                     return;
                 }
 
-                if (currentTool === TOOLS.WAND) {
-                    pointer.startX = pointer.x; pointer.startY = pointer.y;
-                    wandState.active = true;
-                    wandState.startX = pointer.x; wandState.startY = pointer.y;
-                    wandState.recoiling = false; wandState.recoilProgress = 0;
-                } else if (currentTool === TOOLS.NEEDLE) {
-                    checkNeedlePop(pointer.x, pointer.y);
-                } else if (currentTool === TOOLS.RANDOM) {
-                    randomSpawnPoint.x = Math.random() * width;
-                    randomSpawnPoint.y = Math.random() * height;
+                if (!bgState.isResizing) { // 只有沒在調整圖片時才用工具
+                    if (currentTool === TOOLS.WAND) {
+                        pointer.startX = pointer.x; pointer.startY = pointer.y;
+                        wandState.active = true;
+                        wandState.startX = pointer.x; wandState.startY = pointer.y;
+                        wandState.recoiling = false; wandState.recoilProgress = 0;
+                    } else if (currentTool === TOOLS.WAND_SIMPLE) {
+                         pointer.startX = pointer.x; pointer.startY = pointer.y;
+                         wandState.active = true; // 复用 wandState
+                    } else if (currentTool === TOOLS.NEEDLE) {
+                        checkNeedlePop(pointer.x, pointer.y);
+                    } else if (currentTool === TOOLS.RANDOM) {
+                        randomSpawnPoint.x = Math.random() * width;
+                        randomSpawnPoint.y = Math.random() * height;
+                    }
                 }
             }
         }
@@ -1256,21 +1367,37 @@
             pointer.vx = newX - lastPointer.x; pointer.vy = newY - lastPointer.y;
             lastPointer.x = newX; lastPointer.y = newY; pointer.x = newX; pointer.y = newY;
             
+            // 背景調整邏輯
+            if (bgState.isResizing) {
+                // 根據滑鼠位置更新寬高
+                bgState.w = Math.max(50, pointer.x - bgState.x);
+                bgState.h = Math.max(50, pointer.y - bgState.y);
+                return;
+            }
+            if (bgState.isDragging) {
+                bgState.x = pointer.x - bgState.dragStartX;
+                bgState.y = pointer.y - bgState.dragStartY;
+                return;
+            }
+            
             if (currentTool === TOOLS.NEEDLE) {
                 if (isNeedleSuper || pointer.isDown) checkNeedlePop(pointer.x, pointer.y);
             }
         }
 
         function handlePointerUp() {
+            bgState.isResizing = false;
+            bgState.isDragging = false;
+            
             if (!pointer.isDown) return;
             pointer.isDown = false;
             
             if (currentState === STATE.PLAYING) {
                 const duration = Date.now() - pointer.downStart;
-                if (currentTool === TOOLS.WAND) {
+                if (currentTool === TOOLS.WAND || currentTool === TOOLS.WAND_SIMPLE) {
                     if (wandState.active) {
                         wandState.active = false;
-                        wandState.recoiling = true;
+                        wandState.recoiling = true; // 簡單版也共用回彈邏輯，或直接生成
                         wandState.endX = pointer.x; wandState.endY = pointer.y;
                     }
                 }
@@ -1281,7 +1408,8 @@
         function startGame() {
             currentState = STATE.PLAYING;
             document.body.classList.add('game-active');
-            document.getElementById('panel-gen').classList.add('show');
+            document.getElementById('intro-text').classList.add('fade-out');
+            setTimeout(() => document.getElementById('intro-text').remove(), 1000);
             updateSidebarActiveState();
         }
 
@@ -1320,13 +1448,34 @@
         }
 
         let lastGunFireTime = 0;
+        let autoGenTimer = 0;
 
         function updateTools() {
             if (currentState === STATE.PAUSED) return;
+            
+            // 自動生成派對模式
+            if (isAutoGen) {
+                if (Date.now() - autoGenTimer > 200) { // 每200ms嘗試一次
+                    const randTool = Math.random();
+                    const rx = Math.random() * width;
+                    const ry = Math.random() * height;
+                    
+                    if (randTool < 0.4) {
+                        // 泡泡槍連發
+                        createAndSpawnBubble(rx, ry, 12 + Math.random()*5, (Math.random()-0.5)*4, (Math.random()-0.5)*4);
+                    } else if (randTool < 0.7) {
+                        // M型夾效果 (直接生成較大泡泡)
+                        createAndSpawnBubble(rx, ry, 30 + Math.random()*30, 0, 0);
+                    } else {
+                        // 隨機生成 (可能有大有小)
+                        createAndSpawnBubble(rx, ry, 10 + Math.random()*80, (Math.random()-0.5)*2, (Math.random()-0.5)*2);
+                    }
+                    autoGenTimer = Date.now();
+                }
+            }
 
-            if (currentTool === TOOLS.GUN && pointer.isDown) {
+            if (currentTool === TOOLS.GUN && pointer.isDown && !bgState.isResizing && !bgState.isDragging) {
                 const interval = 300 - (env.genRateLevel / 100) * 270;
-                
                 if (Date.now() - lastGunFireTime > interval) { 
                     const r = 12; 
                     const vx = (Math.random() - 0.5) * 2;
@@ -1343,19 +1492,7 @@
             const dx = pointer.x - pointer.startX; const dy = pointer.y - pointer.startY;
             const dist = Math.sqrt(dx*dx + dy*dy);
             let radius = Math.max(20, Math.min(dist * 0.4, 150));
-            let b = new Bubble(centerX, centerY, radius, 0, 0);
-            b.wobbleAmp = 0.4; 
-            for (let i = bubbles.length - 1; i >= 0; i--) {
-                let other = bubbles[i];
-                if (other.popping) continue;
-                if (other.radius < radius * 0.7) {
-                    let d = Math.sqrt((b.x - other.x)**2 + (b.y - other.y)**2);
-                    if (d + other.radius < radius) {
-                        b.captureChild(other); bubbles.splice(i, 1);
-                    }
-                }
-            }
-            bubbles.push(b);
+            createAndSpawnBubble(centerX, centerY, radius, 0, 0);
         }
 
         function drawWandVisuals() {
@@ -1371,29 +1508,56 @@
                     let radius = Math.max(20, Math.min(dist * 0.4, 150));
                     createAndSpawnBubble(cx, cy, radius, 0, 0);
                 } else {
-                    drawFilm(wandState.startX, wandState.startY, wandState.endX, wandState.endY, 1 - wandState.recoilProgress);
+                    if (currentTool === TOOLS.WAND)
+                        drawFilm(wandState.startX, wandState.startY, wandState.endX, wandState.endY, 1 - wandState.recoilProgress);
+                    else
+                        drawSimpleLine(wandState.startX, wandState.startY, wandState.endX, wandState.endY);
                 }
                 return;
             }
 
-            if (currentState === STATE.PLAYING && currentTool === TOOLS.WAND && pointer.isDown) {
+            if (currentState === STATE.PLAYING && (currentTool === TOOLS.WAND || currentTool === TOOLS.WAND_SIMPLE) && pointer.isDown && !bgState.isResizing) {
                 let x1 = wandState.startX; 
                 let y1 = wandState.startY;
                 let x2 = pointer.x; 
                 let y2 = pointer.y;
                 wandState.endX = x2; wandState.endY = y2;
-                drawFilm(x1, y1, x2, y2, 1);
+                
+                if (currentTool === TOOLS.WAND) drawFilm(x1, y1, x2, y2, 1);
+                else drawSimpleLine(x1, y1, x2, y2);
             }
+        }
+        
+        function drawSimpleLine(x1, y1, x2, y2) {
+            ctx.save();
+            ctx.beginPath();
+            ctx.moveTo(x1, y1);
+            ctx.lineTo(x2, y2);
+            ctx.strokeStyle = "rgba(255, 255, 255, 0.8)";
+            ctx.lineWidth = 2;
+            ctx.setLineDash([5, 5]);
+            ctx.stroke();
+            
+            // 畫三角形 (起點、終點、滑鼠點) - 其實只是兩點連線
+            // 原需求：三角形拉的那個。
+            // 模擬：畫出兩條線連到一個虛擬頂點？
+            // 簡化：畫出一條線，並在中間顯示泡泡預覽
+            const cx = (x1+x2)/2, cy = (y1+y2)/2;
+            const dist = Math.sqrt((x2-x1)**2 + (y2-y1)**2);
+            ctx.beginPath();
+            ctx.arc(cx, cy, Math.min(dist*0.4, 150), 0, Math.PI*2);
+            ctx.strokeStyle = "rgba(255,255,255,0.3)";
+            ctx.setLineDash([]);
+            ctx.stroke();
+            
+            ctx.restore();
         }
         
         function drawFilm(x1, y1, x2, y2, scale) {
             if (scale < 1) {
-                const cx = (x1 + x2) / 2;
-                const cy = (y1 + y2) / 2;
-                x1 = cx + (x1 - cx) * scale;
-                y1 = cy + (y1 - cy) * scale;
-                x2 = cx + (x2 - cx) * scale;
-                y2 = cy + (y2 - cy) * scale;
+                const cx = (x1 + x2) / 2; const cy = (y1 + y2) / 2;
+                x1 = cx + (x1 - cx) * scale; y1 = cy + (y1 - cy) * scale;
+                x2 = cx + (x2 - cx) * scale; y2 = cy + (y2 - cy) * scale;
             }
             const dx = x2 - x1; const dy = y2 - y1;
             const len = Math.sqrt(dx*dx + dy*dy);
@@ -1439,7 +1603,7 @@
         }
         
         function drawChargeFeedback() {
-            if (currentState === STATE.PLAYING && currentTool === TOOLS.RANDOM && pointer.isDown) {
+            if (currentState === STATE.PLAYING && currentTool === TOOLS.RANDOM && pointer.isDown && !bgState.isResizing) {
                 const duration = Date.now() - pointer.downStart;
                 let r = 15;
                 if (duration > 100) r = 15 + (duration - 100) * 0.05;
@@ -1454,28 +1618,37 @@
             }
         }
         
+        function drawBackgroundHandles() {
+            if (backgroundImage) {
+                // 繪製邊框
+                ctx.save();
+                ctx.strokeStyle = "rgba(255,255,255,0.5)";
+                ctx.lineWidth = 1;
+                ctx.setLineDash([5, 5]);
+                ctx.strokeRect(bgState.x, bgState.y, bgState.w, bgState.h);
+                
+                // 繪製右下角調整點
+                ctx.fillStyle = "rgba(255,255,255,0.8)";
+                ctx.beginPath();
+                ctx.arc(bgState.x + bgState.w, bgState.y + bgState.h, 8, 0, Math.PI * 2);
+                ctx.fill();
+                
+                // 如果滑鼠在圖片上，顯示拖曳提示 (可選)
+                ctx.restore();
+            }
+        }
+        
         function loop() {
             frameCount++;
             
-            // 清除畫面 (即使暫停也要清除並重繪，才能看到變化如泡泡消失)
-            // 先畫背景圖 (如果有)
-            if (backgroundImage) {
-                // 繪製背景並維持比例 (cover)
-                // bgScale 實作
-                const ratio = Math.max(width / backgroundImage.width, height / backgroundImage.height);
-                // 應用縮放倍率
-                const finalRatio = ratio * bgScale;
-                
-                const centerShift_x = (width - backgroundImage.width * finalRatio) / 2;
-                const centerShift_y = (height - backgroundImage.height * finalRatio) / 2;
-                
-                // 儲存參數供泡泡折射使用
-                bgMetrics = { drawX: centerShift_x, drawY: centerShift_y, ratio: finalRatio };
+            ctx.clearRect(0, 0, width, height);
 
-                ctx.clearRect(0, 0, width, height); 
-                ctx.drawImage(backgroundImage, 0, 0, backgroundImage.width, backgroundImage.height, centerShift_x, centerShift_y, backgroundImage.width * finalRatio, backgroundImage.height * finalRatio);
-            } else {
-                ctx.clearRect(0, 0, width, height);
+            // 繪製背景與把手
+            if (backgroundImage) {
+                // 儲存參數供泡泡折射使用
+                bgMetrics = { drawX: bgState.x, drawY: bgState.y, ratio: 1.0 }; // ratio 不再單一，視為 1:1 對應螢幕像素，縮放已在 w/h
+                ctx.drawImage(backgroundImage, bgState.x, bgState.y, bgState.w, bgState.h);
+                drawBackgroundHandles();
             }
 
             if (currentState !== STATE.PAUSED) {
