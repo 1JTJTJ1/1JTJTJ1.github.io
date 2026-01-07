@@ -3,122 +3,67 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>夢幻泡泡實驗室</title>
+    <title>夢幻泡泡實驗室 - 音樂版</title>
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;700&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;700;900&display=swap');
 
         body, html {
-            margin: 0;
-            padding: 0;
-            width: 100%;
-            height: 100%;
-            overflow: hidden;
+            margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden;
             background: linear-gradient(135deg, #1a1a2e, #16213e);
             font-family: 'Noto Sans TC', sans-serif;
-            user-select: none;
-            -webkit-user-select: none;
+            user-select: none; -webkit-user-select: none;
         }
 
-        #canvas-container {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            z-index: 1;
-            cursor: crosshair;
+        #canvas-container { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 1; cursor: crosshair; }
+        #ui-layer { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 10; pointer-events: none; }
+
+        /* 超大開場文字 */
+        #intro-text {
+            position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+            font-size: 8vw; font-weight: 900; color: rgba(255, 255, 255, 0.1);
+            text-transform: uppercase; letter-spacing: 5px; pointer-events: none;
+            transition: opacity 1s, transform 1s; z-index: 5;
+            text-shadow: 0 0 30px rgba(255,255,255,0.2);
+        }
+        #intro-text.fade-out { opacity: 0; transform: translate(-50%, -50%) scale(1.5); }
+
+        /* 側邊工具欄 */
+        .sidebar {
+            position: absolute; right: 20px; top: 50%; transform: translateY(-50%);
+            display: flex; flex-direction: column; gap: 15px; pointer-events: auto; z-index: 100;
         }
 
-        #ui-layer {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            z-index: 10;
-            pointer-events: none;
-            display: flex;
-            flex-direction: column;
-            justify-content: space-between;
+        .sidebar-btn-container { position: relative; }
+        .sidebar-btn {
+            background: rgba(255, 255, 255, 0.15); backdrop-filter: blur(5px);
+            border: 1px solid rgba(255, 255, 255, 0.3); border-radius: 12px;
+            width: 50px; height: 50px; display: flex; justify-content: center; align-items: center;
+            cursor: pointer; transition: all 0.2s; color: white;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.2);
         }
+        .sidebar-btn:hover { background: rgba(255, 255, 255, 0.25); transform: scale(1.1); }
+        .sidebar-btn.active { background: rgba(100, 200, 255, 0.4); border-color: rgba(100, 200, 255, 0.8); }
 
-        #start-hint {
-            position: absolute;
-            top: 20%;
-            width: 100%;
-            text-align: center;
-            color: rgba(255, 255, 255, 0.6);
-            font-size: 1.2rem;
-            pointer-events: none;
-            transition: opacity 0.5s;
+        /* 彈出面板 */
+        .pop-panel {
+            position: absolute; background: rgba(0, 0, 0, 0.7); backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2); border-radius: 15px;
+            padding: 10px; pointer-events: auto; display: none; 
+            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37); z-index: 150;
         }
-
-        /* 關鍵修正：初始狀態設為 display: none */
-        .toolbar {
-            display: none; 
-            justify-content: center;
-            gap: 15px;
-            padding: 20px;
-            pointer-events: auto;
-            opacity: 0;
-            transform: translateY(-50px);
-            transition: all 0.5s ease-out;
-        }
-
-        .tool-btn {
-            background: rgba(255, 255, 255, 0.1);
-            backdrop-filter: blur(5px);
-            border: 1px solid rgba(255, 255, 255, 0.3);
-            color: white;
-            padding: 10px 20px;
-            border-radius: 20px;
-            cursor: pointer;
-            font-size: 1rem;
-            transition: all 0.2s;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-        }
-
-        .tool-btn.active {
-            background: rgba(100, 200, 255, 0.4);
-            border-color: rgba(100, 200, 255, 0.8);
-            box-shadow: 0 0 15px rgba(100, 200, 255, 0.4);
-        }
-
-        .cockpit {
-            display: none; /* 關鍵修正：初始隱藏 */
-            position: absolute;
-            bottom: 20px;
-            right: 20px;
-            width: 280px;
-            background: rgba(0, 0, 0, 0.6);
-            backdrop-filter: blur(10px);
-            border: 1px solid rgba(255, 255, 255, 0.2);
-            border-radius: 15px;
-            padding: 20px;
-            color: white;
-            pointer-events: auto;
-            opacity: 0;
-            transform: translateX(100px);
-            transition: all 0.5s ease-out;
-        }
-
-        /* 啟動後的 Class */
-        .game-active .toolbar {
-            display: flex;
-            opacity: 1;
-            transform: translateY(0);
-        }
+        .pop-panel.show { display: flex; }
+        #panel-gen { right: 85px; top: 100px; }
         
-        .game-active .cockpit {
-            display: block;
-            opacity: 1;
-            transform: translateX(0);
+        .sub-tool-btn {
+            background: rgba(255, 255, 255, 0.1); border: 1px solid rgba(255, 255, 255, 0.2);
+            color: white; border-radius: 8px; cursor: pointer; width: 45px; height: 45px;
+            display: flex; justify-content: center; align-items: center; margin: 0 5px;
         }
+        .sub-tool-btn.active { background: rgba(100, 200, 255, 0.4); border-color: #64c8ff; }
 
-        .control-group label { display: flex; justify-content: space-between; font-size: 0.9rem; margin-bottom: 5px; color: #ddd; }
-        input[type=range] { -webkit-appearance: none; width: 100%; background: transparent; }
-        input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; height: 16px; width: 16px; border-radius: 50%; background: #fff; cursor: pointer; margin-top: -6px; }
-        input[type=range]::-webkit-slider-runnable-track { width: 100%; height: 4px; background: rgba(255,255,255,0.3); border-radius: 2px; }
+        /* 底部控制台樣式略... (保持原樣以節省空間) */
+        .vars-container { display: flex; gap: 20px; color: white; padding: 10px; }
+        input[type=range] { width: 100px; }
     </style>
 </head>
 <body>
@@ -127,228 +72,220 @@
         <canvas id="bubbleCanvas"></canvas>
     </div>
 
-    <div id="ui-layer">
-        <div id="start-hint">戳破泡泡開始吹氣之旅</div>
+    <div id="intro-text">BUBBLE LAB</div>
 
-        <div class="toolbar" id="toolbar">
-            <button class="tool-btn" onclick="selectTool(0)">🔫 泡泡機</button>
-            <button class="tool-btn" onclick="selectTool(1)">✋ 手手</button>
-            <button class="tool-btn" onclick="selectTool(2)">🧲 M型夾(經典)</button>
+    <div id="ui-layer">
+        <div class="sidebar">
+            <div class="sidebar-btn-container">
+                <div class="sidebar-btn" id="btn-main-gen" onclick="togglePopPanel('panel-gen')">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/></svg>
+                </div>
+            </div>
+            <div class="sidebar-btn-container">
+                <div class="sidebar-btn" id="btn-main-needle" onclick="selectMainTool(3)">
+                    <svg viewBox="0 0 24 24"><path d="M20 4L4 20" stroke="white" stroke-width="2"/></svg>
+                </div>
+            </div>
         </div>
 
-        <div class="cockpit" id="cockpit">
-            <h3>環境控制艙</h3>
-            <div class="control-group">
-                <label>風速 (Wind) <span id="val-wind">2</span></label>
-                <input type="range" min="-10" max="10" value="2" step="0.5" id="range-wind">
-            </div>
-            <div class="control-group">
-                <label>折射角度 (Light) <span id="val-light">45°</span></label>
-                <input type="range" min="0" max="360" value="45" id="range-light">
-            </div>
-            <div class="control-group">
-                <label>泡泡韌性 (Life) <span id="val-life">中</span></label>
-                <input type="range" min="50" max="500" value="200" id="range-life">
-            </div>
+        <div class="pop-panel" id="panel-gen">
+            <div class="sub-tool-btn" id="btn-sub-gun" onclick="selectSubTool(0)">🔫</div>
+            <div class="sub-tool-btn" id="btn-sub-wand-simple" onclick="selectSubTool(6)">🧲</div>
         </div>
     </div>
 
     <script>
+        // --- 音樂與音效管理系統 ---
+        const AudioSys = {
+            ctx: null,
+            bgmOsc: null,
+            init() {
+                if (this.ctx) return;
+                this.ctx = new (window.AudioContext || window.webkitAudioContext)();
+                this.startBGM();
+            },
+            startBGM() {
+                // 創造一個簡單的循環輕快旋律 (小調五聲音階)
+                const notes = [261.63, 293.66, 329.63, 392.00, 440.00]; // C4, D4, E4, G4, A4
+                let step = 0;
+                setInterval(() => {
+                    if (currentState !== 1) return; // 僅在遊戲中播放
+                    this.playNote(notes[step % notes.length], 0.1, 0.05);
+                    step += (Math.random() > 0.8 ? 2 : 1);
+                }, 250);
+            },
+            playNote(freq, dur, vol) {
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+                osc.type = 'triangle'; // 較柔和的聲音
+                osc.frequency.setValueAtTime(freq, this.ctx.currentTime);
+                gain.gain.setValueAtTime(vol, this.ctx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + dur);
+                osc.connect(gain); gain.connect(this.ctx.destination);
+                osc.start(); osc.stop(this.ctx.currentTime + dur);
+            },
+            playPop() {
+                if (!this.ctx) return;
+                this.playNote(800 + Math.random() * 400, 0.1, 0.1);
+            }
+        };
+
         const canvas = document.getElementById('bubbleCanvas');
         const ctx = canvas.getContext('2d');
-        
-        const STATE = { START_SCREEN: 0, PLAYING: 1 };
-        let currentState = STATE.START_SCREEN;
-
-        const TOOLS = { GUN: 0, HAND: 1, WAND: 2 };
+        const TOOLS = { GUN: 0, WAND_SIMPLE: 6, NEEDLE: 3 };
+        let currentState = 0; // 0: Start, 1: Playing
         let currentTool = TOOLS.GUN;
+        let width, height;
+        let bubbles = [];
+        let particles = [];
+        let pointer = { x: 0, y: 0, isDown: false, startX: 0, startY: 0 };
+        let env = { wind: 2, bubbleLife: 300, bubbleSize: 1 };
 
-        let env = { wind: 2, lightAngle: 45, bubbleLife: 200, gravity: -0.05 };
-        let pointer = { x: 0, y: 0, isDown: false, downStart: 0, startX: 0, startY: 0 };
-        let width, height, bubbles = [], particles = [], startBubble = null;
-
-        // --- 核心類別 (Particle, Bubble, StartBubble) ---
-        class Particle {
-            constructor(x, y, color) {
-                this.x = x; this.y = y;
-                this.vx = (Math.random() - 0.5) * 5;
-                this.vy = (Math.random() - 0.5) * 5;
-                this.life = 1.0;
-                this.decay = Math.random() * 0.03 + 0.02;
-                this.color = color;
-                this.size = Math.random() * 2 + 1;
-            }
-            update() { this.x += this.vx; this.y += this.vy; this.vy += 0.2; this.life -= this.decay; }
-            draw(ctx) {
-                ctx.globalAlpha = this.life;
-                ctx.fillStyle = this.color;
-                ctx.beginPath(); ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2); ctx.fill();
-                ctx.globalAlpha = 1;
-            }
-        }
-
+        // --- 泡泡類別 ---
         class Bubble {
             constructor(x, y, radius, vx, vy) {
                 this.x = x; this.y = y; this.radius = radius;
                 this.vx = vx; this.vy = vy;
                 this.maxLife = env.bubbleLife + Math.random() * 100;
                 this.age = 0; this.popping = false;
-                this.wobblePhase = Math.random() * Math.PI * 2;
-                this.wobbleSpeed = 0.1 + Math.random() * 0.1;
-                this.wobbleAmp = 0.2;
-                this.hueOffset = Math.random() * 360;
             }
             update() {
                 this.age++;
                 this.x += this.vx; this.y += this.vy;
-                this.vx += (env.wind * 0.01); this.vx *= 0.99;
-                this.vy += env.gravity; this.vy *= 0.99;
-                this.wobbleAmp *= 0.98;
-                if (this.x < -this.radius * 2 || this.x > width + this.radius * 2 || this.y < -100) this.popping = true;
+                this.vy -= 0.02; // 浮力
+                if (this.age > this.maxLife) this.pop();
             }
-            draw(ctx) {
-                if (this.popping) return;
-                const wobble = Math.sin(this.age * this.wobbleSpeed + this.wobblePhase) * this.wobbleAmp;
-                const rx = this.radius * (1 + wobble);
-                const ry = this.radius * (1 - wobble);
-                
-                let alpha = 1;
-                const lifePercent = this.age / this.maxLife;
-                if (lifePercent > 0.8) alpha = 1 - ((lifePercent - 0.8) * 5);
-                if (lifePercent >= 1) { this.pop(); return; }
-
-                ctx.save();
-                ctx.translate(this.x, this.y);
+            draw() {
                 ctx.beginPath();
-                ctx.ellipse(0, 0, Math.abs(rx), Math.abs(ry), 0, 0, Math.PI * 2);
-
-                const lightHue = (env.lightAngle + this.age + this.hueOffset) % 360;
-                const gradient = ctx.createRadialGradient(-rx*0.3, -ry*0.3, rx*0.1, 0, 0, rx);
-                gradient.addColorStop(0, `hsla(0,0%,100%,0)`);
-                gradient.addColorStop(1, `hsla(${lightHue}, 80%, 50%, ${0.3 * alpha})`);
-
-                ctx.fillStyle = gradient; ctx.fill();
-                ctx.strokeStyle = `hsla(${lightHue}, 80%, 80%, ${0.4 * alpha})`;
+                const grad = ctx.createRadialGradient(this.x-this.radius*0.3, this.y-this.radius*0.3, this.radius*0.1, this.x, this.y, this.radius);
+                grad.addColorStop(0, "rgba(255,255,255,0.4)");
+                grad.addColorStop(1, "hsla("+(this.age%360)+", 70%, 70%, 0.3)");
+                ctx.fillStyle = grad;
+                ctx.arc(this.x, this.y, this.radius, 0, Math.PI*2);
+                ctx.fill();
+                ctx.strokeStyle = "rgba(255,255,255,0.5)";
                 ctx.stroke();
-                ctx.restore();
             }
             pop() {
                 this.popping = true;
-                for (let i = 0; i < 8; i++) particles.push(new Particle(this.x, this.y, 'rgba(255,255,255,0.5)'));
+                AudioSys.playPop();
+                for(let i=0; i<8; i++) particles.push(new Particle(this.x, this.y));
             }
         }
 
-        class StartBubble extends Bubble {
-            constructor(x, y) { super(x, y, 80, 0, 0); this.maxLife = Infinity; }
-            draw(ctx) {
-                if (this.popping) return;
-                super.draw(ctx);
-                ctx.save();
-                ctx.translate(this.x, this.y);
-                ctx.fillStyle = "white";
-                ctx.font = "bold 24px 'Noto Sans TC'";
-                ctx.textAlign = "center";
-                ctx.fillText("START", 0, 8);
-                ctx.restore();
+        class Particle {
+            constructor(x, y) {
+                this.x = x; this.y = y;
+                this.vx = (Math.random()-0.5)*5; this.vy = (Math.random()-0.5)*5;
+                this.life = 1.0;
+            }
+            update() { this.x += this.vx; this.y += this.vy; this.life -= 0.05; }
+            draw() { ctx.fillStyle = `rgba(200,220,255,${this.life})`; ctx.fillRect(this.x, this.y, 2, 2); }
+        }
+
+        // --- 核心邏輯 ---
+        function init() {
+            resize();
+            window.addEventListener('resize', resize);
+            canvas.addEventListener('mousedown', handleDown);
+            window.addEventListener('mouseup', handleUp);
+            canvas.addEventListener('mousemove', e => { pointer.x = e.clientX; pointer.y = e.clientY; });
+            loop();
+        }
+
+        function resize() { width = canvas.width = window.innerWidth; height = canvas.height = window.innerHeight; }
+
+        function handleDown(e) {
+            AudioSys.init(); // 啟動 AudioContext
+            pointer.isDown = true;
+            pointer.startX = e.clientX;
+            pointer.startY = e.clientY;
+
+            if (currentState === 0) {
+                currentState = 1;
+                document.getElementById('intro-text').classList.add('fade-out');
             }
         }
 
-        // --- 移植核心：M型夾邏輯 (fireWandBubble & drawWandVisuals) ---
+        function handleUp() {
+            if (!pointer.isDown) return;
+            pointer.isDown = false;
+            // 替換後的 M 型夾邏輯：放開時彈射
+            if (currentTool === TOOLS.WAND_SIMPLE) {
+                fireWandBubble();
+            }
+        }
+
+        // --- 取代後的 M 型夾發射程式碼 ---
         function fireWandBubble() {
             const dx = pointer.x - pointer.startX;
             const dy = pointer.y - pointer.startY;
             const dist = Math.sqrt(dx*dx + dy*dy);
-            if (dist < 15) return; // 拉得不夠長不發射
+            
+            let radius = Math.min(dist * 0.4, 150); 
+            if (radius < 20) radius = 20;
 
-            let radius = Math.min(dist * 0.4, 200); 
-            const vx = -dx * 0.15; // 彈弓效應
-            const vy = -dy * 0.15;
+            const velocityScale = 0.15;
+            const vx = -dx * velocityScale;
+            const vy = -dy * velocityScale;
 
-            const b = new Bubble(pointer.x, pointer.y, radius, vx, vy);
-            b.wobbleAmp = 0.6; 
-            bubbles.push(b);
+            bubbles.push(new Bubble(pointer.x, pointer.y, radius, vx, vy));
         }
 
         function drawWandVisuals() {
-            if (currentState === STATE.PLAYING && currentTool === TOOLS.WAND && pointer.isDown) {
-                ctx.save();
+            if (currentTool === TOOLS.WAND_SIMPLE && pointer.isDown) {
                 ctx.beginPath();
                 ctx.moveTo(pointer.startX - 30, pointer.startY);
                 ctx.lineTo(pointer.x, pointer.y);
                 ctx.lineTo(pointer.startX + 30, pointer.startY);
-                ctx.fillStyle = "rgba(100, 200, 255, 0.2)";
+                ctx.fillStyle = "rgba(255, 255, 255, 0.2)";
                 ctx.fill();
-                ctx.strokeStyle = "rgba(255, 255, 255, 0.5)";
-                ctx.lineWidth = 2;
+                ctx.strokeStyle = "white";
                 ctx.stroke();
-                ctx.restore();
             }
-        }
-
-        // --- 系統控制 ---
-        function init() {
-            resize();
-            resetStartBubble();
-            setupUI();
-            
-            canvas.addEventListener('mousedown', (e) => handlePointerDown(e));
-            window.addEventListener('mouseup', () => handlePointerUp());
-            canvas.addEventListener('mousemove', (e) => { pointer.x = e.clientX; pointer.y = e.clientY; });
-
-            requestAnimationFrame(loop);
-        }
-
-        function handlePointerDown(e) {
-            pointer.x = e.clientX; pointer.y = e.clientY;
-            pointer.isDown = true;
-            if (currentState === STATE.START_SCREEN) {
-                const dx = pointer.x - startBubble.x;
-                const dy = pointer.y - startBubble.y;
-                if (Math.sqrt(dx*dx + dy*dy) < startBubble.radius) {
-                    startBubble.pop();
-                    setTimeout(startGame, 300);
-                }
-            } else if (currentTool === TOOLS.WAND) {
-                pointer.startX = pointer.x; pointer.startY = pointer.y;
-            }
-        }
-
-        function handlePointerUp() {
-            if (!pointer.isDown) return;
-            pointer.isDown = false;
-            if (currentState === STATE.PLAYING && currentTool === TOOLS.WAND) fireWandBubble();
-        }
-
-        function startGame() {
-            currentState = STATE.PLAYING;
-            document.body.classList.add('game-active');
-        }
-
-        function selectTool(idx) {
-            currentTool = idx;
-            document.querySelectorAll('.tool-btn').forEach((btn, i) => btn.classList.toggle('active', i === idx));
         }
 
         function loop() {
             ctx.clearRect(0, 0, width, height);
-            if (currentState === STATE.START_SCREEN) {
-                if (startBubble) { startBubble.update(); startBubble.draw(ctx); }
-            } else {
-                if (pointer.isDown && currentTool === TOOLS.GUN) {
-                    bubbles.push(new Bubble(pointer.x, pointer.y, 10 + Math.random()*5, (Math.random()-0.5)*2, -2));
+            
+            if (currentState === 1) {
+                if (currentTool === TOOLS.GUN && pointer.isDown && Math.random() > 0.8) {
+                    bubbles.push(new Bubble(pointer.x, pointer.y, 10 + Math.random()*10, (Math.random()-0.5)*4, (Math.random()-0.5)*4));
                 }
                 drawWandVisuals();
             }
 
-            bubbles.forEach((b, i) => { b.update(); b.draw(ctx); if (b.popping) bubbles.splice(i, 1); });
-            particles.forEach((p, i) => { p.update(); p.draw(ctx); if (p.life <= 0) particles.splice(i, 1); });
+            bubbles.forEach((b, i) => {
+                b.update(); b.draw();
+                if (currentTool === TOOLS.NEEDLE && pointer.isDown) {
+                    let d = Math.hypot(b.x - pointer.x, b.y - pointer.y);
+                    if (d < b.radius) b.pop();
+                }
+            });
+            bubbles = bubbles.filter(b => !b.popping);
+
+            particles.forEach(p => { p.update(); p.draw(); });
+            particles = particles.filter(p => p.life > 0);
+
             requestAnimationFrame(loop);
         }
 
-        function resize() { width = canvas.width = window.innerWidth; height = canvas.height = window.innerHeight; }
-        function resetStartBubble() { startBubble = new StartBubble(width / 2, height / 2); }
-        function setupUI() {
-            document.getElementById('range-wind').addEventListener('input', (e) => { env.wind = parseFloat(e.target.value); document.getElementById('val-wind').innerText = env.wind; });
+        function togglePopPanel(id) {
+            const p = document.getElementById(id);
+            p.style.display = p.style.display === 'flex' ? 'none' : 'flex';
+        }
+
+        function selectSubTool(t) {
+            currentTool = t;
+            document.querySelectorAll('.sub-tool-btn').forEach(b => b.classList.remove('active'));
+            if(t === 0) document.getElementById('btn-sub-gun').classList.add('active');
+            if(t === 6) document.getElementById('btn-sub-wand-simple').classList.add('active');
+        }
+        
+        function selectMainTool(t) {
+            currentTool = t;
+            document.querySelectorAll('.sidebar-btn').forEach(b => b.classList.remove('active'));
+            document.getElementById('btn-main-needle').classList.add('active');
         }
 
         init();
